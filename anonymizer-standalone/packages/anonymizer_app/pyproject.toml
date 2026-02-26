@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anonymizer-app"
+version = "0.1.0"
+description = "Local desktop UI for anonymizer-core"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "anonymizer-core",
+]
+
+[tool.uv.sources]
+anonymizer-core = { path = "../anonymizer_core", editable = true }
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["anonymizer_app*"]
