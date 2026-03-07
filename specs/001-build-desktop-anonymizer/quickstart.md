@@ -18,6 +18,21 @@ canonical result normalization, mapping export/import, and deanonymization.
 - Missing required backend dependencies or model assets must block only the
   impacted backend, not the entire application if another backend is ready.
 
+## Future Windows Packaging Requirements (Design Only)
+
+- Target a self-contained Windows distribution where end users are not required
+  to install Python or manually manage dependencies.
+- Distribution assumptions:
+  - End users install and launch via Windows-native installer/packaged app flow.
+  - Runtime dependencies and backend model prerequisites are validated through
+    in-app readiness/bootstrap checks.
+- Packaging constraints for future implementation:
+  - Preserve local-first execution and CPU-only behavior.
+  - Preserve thin-wrapper integration with `tmp` source scripts.
+  - Avoid introducing cloud/runtime external requirements for core workflows.
+  - Keep packaging work separate from MVP functional scope (TXT anonymization,
+    mapping export/import, deanonymization).
+
 ## Scenario 1: Backend A TXT anonymization
 1. Start application entrypoint (MVP UI/CLI layer).
 2. Run backend readiness check.

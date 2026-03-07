@@ -47,12 +47,12 @@ description: "Implementation tasks for Windows Desktop Anonymization MVP"
 
 **Purpose**: Confirm backend/runtime assumptions before coding foundations.
 
-- [ ] T001 Confirm dependency inventory for `tmp/anonymizer.py` and `tmp/transformer_anonymizer.py` and record validated package/model requirements in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/research.md
-- [ ] T002 Define controlled script-loading approach for non-package `./tmp/*.py` scripts and update wrapper contract details in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/contracts/engine-interface.md
-- [ ] T003 Confirm canonical mapping compatibility metadata (`origin.engine_id`, `schema_version`, `origin.generated_at`, `origin.wrapper_contract_version`, `mapping_format`) and finalize these field-level validation rules in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/contracts/mapping-compatibility.md
-- [ ] T004 Confirm Windows-first bootstrap and remediation expectations and update executable scenarios in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/quickstart.md
-- [ ] T005 Define and document future self-contained Windows packaging requirements (goals, distribution expectations, end-user installation assumptions, and constraints for future packaging work) in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/quickstart.md
-- [ ] T006 Verify and document architecture-level cross-platform preservation (isolate platform-specific behavior; avoid unnecessary Windows-only hardcoding in core services/adapters/models/contracts) in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/research.md
+- [X] T001 Confirm dependency inventory for `tmp/anonymizer.py` and `tmp/transformer_anonymizer.py` and record validated package/model requirements in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/research.md
+- [X] T002 Define controlled script-loading approach for non-package `./tmp/*.py` scripts and update wrapper contract details in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/contracts/engine-interface.md
+- [X] T003 Confirm canonical mapping compatibility metadata (`origin.engine_id`, `schema_version`, `origin.generated_at`, `origin.wrapper_contract_version`, `mapping_format`) and finalize these field-level validation rules in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/contracts/mapping-compatibility.md
+- [X] T004 Confirm Windows-first bootstrap and remediation expectations and update executable scenarios in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/quickstart.md
+- [X] T005 Define and document future self-contained Windows packaging requirements (goals, distribution expectations, end-user installation assumptions, and constraints for future packaging work) in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/quickstart.md
+- [X] T006 Verify and document architecture-level cross-platform preservation (isolate platform-specific behavior; avoid unnecessary Windows-only hardcoding in core services/adapters/models/contracts) in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/research.md
 
 ---
 
@@ -60,18 +60,18 @@ description: "Implementation tasks for Windows Desktop Anonymization MVP"
 
 **Purpose**: Build layered scaffolding, contracts, models, adapters, bootstrap, and storage primitives required by all stories.
 
-- [ ] T007 Create project directories and package markers for `src/app/cli`, `src/bootstrap`, `src/services`, `src/engines`, `src/adapters/documents`, `src/adapters/mappings`, `src/models`, `src/config`, `tests/unit`, `tests/integration`, and `tests/contract`
-- [ ] T008 Create runtime storage directories and bootstrap-safe creation utility in /home/xavier/PycharmProjects/AnonymApp/runtime/outputs, /home/xavier/PycharmProjects/AnonymApp/runtime/mappings, /home/xavier/PycharmProjects/AnonymApp/runtime/logs, and /home/xavier/PycharmProjects/AnonymApp/src/config/settings.py
-- [ ] T009 Create Windows-compatible dependency manifest in /home/xavier/PycharmProjects/AnonymApp/pyproject.toml and record reproducible environment setup notes in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/research.md (including explicit lockfile strategy; if lockfile is not committed yet, document the chosen lockfile approach in that section)
-- [ ] T010 Implement engine interface contract and wrapper base protocol in /home/xavier/PycharmProjects/AnonymApp/src/engines/base.py
-- [ ] T011 Implement canonical result model in /home/xavier/PycharmProjects/AnonymApp/src/models/canonical_result.py
-- [ ] T012 Implement mapping artifact model (with origin/schema metadata) in /home/xavier/PycharmProjects/AnonymApp/src/models/mapping_artifact.py
-- [ ] T013 Implement backend descriptor and readiness models in /home/xavier/PycharmProjects/AnonymApp/src/models/backend_descriptor.py
-- [ ] T014 Implement TXT document adapter contract and loader/saver in /home/xavier/PycharmProjects/AnonymApp/src/adapters/documents/base.py and /home/xavier/PycharmProjects/AnonymApp/src/adapters/documents/txt_adapter.py
-- [ ] T015 Implement canonical mapping adapter (serialize/deserialize + schema checks) in /home/xavier/PycharmProjects/AnonymApp/src/adapters/mappings/canonical_mapping_adapter.py
-- [ ] T016 Implement bootstrap dependency checks in /home/xavier/PycharmProjects/AnonymApp/src/bootstrap/dependency_check.py focused on Python/runtime dependencies and optional services without GPU detection or GPU setup requirements
-- [ ] T017 Implement bootstrap model availability checks in /home/xavier/PycharmProjects/AnonymApp/src/bootstrap/model_check.py for CPU-only model readiness (no CUDA/MPS/DirectML requirements)
-- [ ] T018 Implement readiness bootstrap orchestration and user-friendly remediation messages in /home/xavier/PycharmProjects/AnonymApp/src/bootstrap/readiness_bootstrap.py and /home/xavier/PycharmProjects/AnonymApp/src/services/readiness_service.py with explicit CPU-only compatibility reporting
+- [X] T007 Create project directories and package markers for `src/app/cli`, `src/bootstrap`, `src/services`, `src/engines`, `src/adapters/documents`, `src/adapters/mappings`, `src/models`, `src/config`, `tests/unit`, `tests/integration`, and `tests/contract`
+- [X] T008 Create runtime storage directories and bootstrap-safe creation utility in /home/xavier/PycharmProjects/AnonymApp/runtime/outputs, /home/xavier/PycharmProjects/AnonymApp/runtime/mappings, /home/xavier/PycharmProjects/AnonymApp/runtime/logs, and /home/xavier/PycharmProjects/AnonymApp/src/config/settings.py
+- [X] T009 Create Windows-compatible dependency manifest in /home/xavier/PycharmProjects/AnonymApp/pyproject.toml and record reproducible environment setup notes in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/research.md (including explicit lockfile strategy; if lockfile is not committed yet, document the chosen lockfile approach in that section)
+- [X] T010 Implement engine interface contract and wrapper base protocol in /home/xavier/PycharmProjects/AnonymApp/src/engines/base.py
+- [X] T011 Implement canonical result model in /home/xavier/PycharmProjects/AnonymApp/src/models/canonical_result.py
+- [X] T012 Implement mapping artifact model (with origin/schema metadata) in /home/xavier/PycharmProjects/AnonymApp/src/models/mapping_artifact.py
+- [X] T013 Implement backend descriptor and readiness models in /home/xavier/PycharmProjects/AnonymApp/src/models/backend_descriptor.py
+- [X] T014 Implement TXT document adapter contract and loader/saver in /home/xavier/PycharmProjects/AnonymApp/src/adapters/documents/base.py and /home/xavier/PycharmProjects/AnonymApp/src/adapters/documents/txt_adapter.py
+- [X] T015 Implement canonical mapping adapter (serialize/deserialize + schema checks) in /home/xavier/PycharmProjects/AnonymApp/src/adapters/mappings/canonical_mapping_adapter.py
+- [X] T016 Implement bootstrap dependency checks in /home/xavier/PycharmProjects/AnonymApp/src/bootstrap/dependency_check.py focused on Python/runtime dependencies and optional services without GPU detection or GPU setup requirements
+- [X] T017 Implement bootstrap model availability checks in /home/xavier/PycharmProjects/AnonymApp/src/bootstrap/model_check.py for CPU-only model readiness (no CUDA/MPS/DirectML requirements)
+- [X] T018 Implement readiness bootstrap orchestration and user-friendly remediation messages in /home/xavier/PycharmProjects/AnonymApp/src/bootstrap/readiness_bootstrap.py and /home/xavier/PycharmProjects/AnonymApp/src/services/readiness_service.py with explicit CPU-only compatibility reporting
 - [X] T019 Implement baseline logging and error translation utilities for local runtime usage in /home/xavier/PycharmProjects/AnonymApp/src/config/logging.py
 - [X] T020 Create thin CLI entrypoint and parser routing in /home/xavier/PycharmProjects/AnonymApp/src/app/cli/main.py for `anonymize`, `deanonymize`, and `readiness` commands with backend/input/output/mapping path arguments only (no business logic)
 

@@ -72,6 +72,15 @@
   - Ad hoc installs/documented manual steps: rejected due to non-technical-user constraints.
   - Per-engine separate environments: rejected for operational complexity in MVP.
 
+### Lockfile strategy (explicit)
+- Chosen strategy: use `pyproject.toml` as the source dependency manifest and
+  use `uv.lock` as the reproducible lockfile artifact for local/runtime
+  reproducibility.
+- If lockfile refresh is needed, regenerate with `uv` from `pyproject.toml` and
+  review dependency deltas before commit.
+- If `uv.lock` is temporarily not committed, implementation tasks must still
+  document the exact lockfile approach and regeneration command in this section.
+
 ## Decision 9: Dependency inventory for existing `tmp` engines
 - Decision: Treat dependency inventory below as the MVP baseline for wrapper
   integration and backend readiness checks.
@@ -104,3 +113,16 @@
   GLiNER model assets are available for configured mode.
 - Missing `requests` or unavailable Ollama marks optional QC as degraded, but
   MUST NOT block core anonymization.
+
+## Decision 10: Cross-platform preservation at architecture boundaries
+- Decision: Keep platform-specific behavior isolated to bootstrap/runtime path
+  handling and packaging surfaces; keep core services, adapters, models, and
+  engine contracts platform-neutral.
+- Verification focus:
+  - `src/bootstrap` may contain Windows-first runtime checks and messaging.
+  - `src/services`, `src/adapters`, `src/models`, and engine contracts must not
+    hardcode Windows-only shell assumptions.
+  - Future Linux/macOS support remains possible by replacing boundary-specific
+    runtime/bootstrap and packaging components without redesigning core layers.
+- Rationale: Preserves FR-020 (future cross-platform option) while maintaining
+  Windows-first MVP delivery.
