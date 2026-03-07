@@ -9,6 +9,15 @@ canonical result normalization, mapping export/import, and deanonymization.
 - Local repository with `tmp/anonymizer.py` and `tmp/transformer_anonymizer.py`
 - Windows-targeted runtime artifacts prepared by project setup tasks
 
+## Windows-first Bootstrap Expectations
+
+- On first launch, run readiness bootstrap before accepting anonymization jobs.
+- Readiness report must include per-backend status (`ready`, `degraded`,
+  `unavailable`) and remediation steps in plain language.
+- Missing optional Ollama/`requests` path must not block core anonymization.
+- Missing required backend dependencies or model assets must block only the
+  impacted backend, not the entire application if another backend is ready.
+
 ## Scenario 1: Backend A TXT anonymization
 1. Start application entrypoint (MVP UI/CLI layer).
 2. Run backend readiness check.
@@ -52,3 +61,14 @@ Expected result:
 Expected result:
 - Backend status shown as `degraded` or `unavailable` with remediation.
 - Other ready backend remains usable.
+
+## Scenario 6: First-launch readiness gate (Windows)
+1. Start the application on a fresh Windows environment.
+2. Trigger first-launch bootstrap validation.
+3. Inspect readiness output for backend dependency/model checks and optional
+   service checks.
+
+Expected result:
+- Clear readiness summary shown before normal command execution.
+- User receives concrete remediation instructions for each failed check.
+- Core workflow remains available when at least one backend is ready.

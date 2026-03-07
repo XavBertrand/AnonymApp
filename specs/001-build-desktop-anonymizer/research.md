@@ -71,3 +71,36 @@
 - Alternatives considered:
   - Ad hoc installs/documented manual steps: rejected due to non-technical-user constraints.
   - Per-engine separate environments: rejected for operational complexity in MVP.
+
+## Decision 9: Dependency inventory for existing `tmp` engines
+- Decision: Treat dependency inventory below as the MVP baseline for wrapper
+  integration and backend readiness checks.
+- Rationale: Dependency truth must come from actual imports in
+  `tmp/anonymizer.py` and `tmp/transformer_anonymizer.py`.
+- Alternatives considered:
+  - Manual dependency guessing: rejected due to drift risk.
+  - Deferring inventory to implementation: rejected because Phase 0 requires
+    explicit dependency confirmation.
+
+### Inventory from `tmp/anonymizer.py`
+- Python stdlib: `argparse`, `json`, `logging`, `dataclasses`, `pathlib`,
+  `typing`, `urllib.parse`, `re`
+- Third-party required for core NER path: `transformers`, `torch` (CPU/GPU
+  device resolution), Hugging Face model assets
+- Third-party optional path: `requests` (only for optional Ollama QC)
+- Optional external service: Ollama HTTP endpoint (non-blocking for core flow)
+
+### Inventory from `tmp/transformer_anonymizer.py`
+- Python stdlib: `hashlib`, `re`, `collections`, `typing`
+- Third-party required: `transformers`, `rapidfuzz`, `unidecode`
+- Third-party conditional: `gliner` (required for GLiNER mode), `torch`
+- Internal dependency on classic module symbols:
+  `from anonymizer import DATE_RE, EMAIL_RE, IBAN_RE, PHONE_RE, SIREN_SIRET_RE`
+
+### Windows-compatible readiness expectations from inventory
+- Backend `classic` is `ready` only when transformers stack and model assets are
+  available locally.
+- Backend `transformer` is `ready` only when required packages are present and
+  GLiNER model assets are available for configured mode.
+- Missing `requests` or unavailable Ollama marks optional QC as degraded, but
+  MUST NOT block core anonymization.
