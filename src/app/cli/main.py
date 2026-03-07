@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
 
-from src.config.logging import configure_logging
+from src.config.logging import configure_logging, log_and_translate_error
 from src.config.settings import ensure_runtime_dirs
 from src.services.readiness_service import format_readiness_report, get_readiness_report
+
+LOGGER = logging.getLogger(__name__)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -15,17 +18,20 @@ def build_parser() -> argparse.ArgumentParser:
     anonymize = subparsers.add_parser("anonymize", help="Anonymize a TXT file")
     anonymize.add_argument("--backend", required=True, choices=["classic", "transformer"])
     anonymize.add_argument("--input", required=True)
-    anonymize.add_argument("--output", required=True)
-    anonymize.add_argument("--mapping", required=True)
+    anonymize.add_argument("--output", required=False)
+    anonymize.add_argument("--mapping", required=False)
+    anonymize.set_defaults(handler=_handle_anonymize)
 
     deanonymize = subparsers.add_parser("deanonymize", help="Deanonymize using mapping")
     deanonymize.add_argument("--backend", required=True, choices=["classic", "transformer"])
     deanonymize.add_argument("--input", required=True)
-    deanonymize.add_argument("--output", required=True)
+    deanonymize.add_argument("--output", required=False)
     deanonymize.add_argument("--mapping", required=True)
+    deanonymize.set_defaults(handler=_handle_deanonymize)
 
     readiness = subparsers.add_parser("readiness", help="Show backend readiness status")
     readiness.add_argument("--backend", choices=["classic", "transformer"], required=False)
+    readiness.set_defaults(handler=_handle_readiness)
 
     return parser
 
@@ -39,6 +45,34 @@ def _normalize_paths(args: argparse.Namespace) -> dict[str, Path]:
     return paths
 
 
+def _handle_readiness(args: argparse.Namespace) -> int:
+    report = get_readiness_report()
+    if args.backend:
+        report = [r for r in report if r.engine_id == args.backend]
+    print(format_readiness_report(report))
+    return 0
+
+
+def _handle_anonymize(args: argparse.Namespace) -> int:
+    from src.services.anonymization_service import run_anonymization_job
+
+    paths = _normalize_paths(args)
+    job = run_anonymization_job(
+        backend=args.backend,
+        input_path=paths["input"],
+        output_path=paths.get("output"),
+        mapping_path=paths.get("mapping"),
+    )
+    print(f"Anonymized output: {job.output_path}")
+    print(f"Mapping artifact: {job.mapping_path}")
+    return 0
+
+
+def _handle_deanonymize(args: argparse.Namespace) -> int:
+    # Deanonymization service is introduced in a later task phase.
+    raise NotImplementedError("Deanonymization command is not implemented in this phase.")
+
+
 def main(argv: list[str] | None = None) -> int:
     ensure_runtime_dirs()
     configure_logging()
@@ -46,19 +80,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if args.command == "readiness":
-        report = get_readiness_report()
-        if args.backend:
-            report = [r for r in report if r.engine_id == args.backend]
-        print(format_readiness_report(report))
-        return 0
+    handler = getattr(args, "handler", None)
+    if handler is None:
+        parser.print_help()
+        return 2
 
-    paths = _normalize_paths(args)
-    print(
-        f"CLI skeleton only. command={args.command}, backend={args.backend}, "
-        f"paths={{'input': '{paths.get('input')}', 'output': '{paths.get('output')}', 'mapping': '{paths.get('mapping')}'}}"
-    )
-    return 0
+    try:
+        return int(handler(args))
+    except Exception as exc:  # pragma: no cover - exercised via integration tests
+        print(log_and_translate_error(LOGGER, exc, context=f"CLI command '{args.command}'"))
+        return 1
 
 
 if __name__ == "__main__":

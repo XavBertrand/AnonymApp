@@ -72,8 +72,8 @@ description: "Implementation tasks for Windows Desktop Anonymization MVP"
 - [ ] T016 Implement bootstrap dependency checks in /home/xavier/PycharmProjects/AnonymApp/src/bootstrap/dependency_check.py focused on Python/runtime dependencies and optional services without GPU detection or GPU setup requirements
 - [ ] T017 Implement bootstrap model availability checks in /home/xavier/PycharmProjects/AnonymApp/src/bootstrap/model_check.py for CPU-only model readiness (no CUDA/MPS/DirectML requirements)
 - [ ] T018 Implement readiness bootstrap orchestration and user-friendly remediation messages in /home/xavier/PycharmProjects/AnonymApp/src/bootstrap/readiness_bootstrap.py and /home/xavier/PycharmProjects/AnonymApp/src/services/readiness_service.py with explicit CPU-only compatibility reporting
-- [ ] T019 Implement baseline logging and error translation utilities for local runtime usage in /home/xavier/PycharmProjects/AnonymApp/src/config/logging.py
-- [ ] T020 Create thin CLI entrypoint and parser routing in /home/xavier/PycharmProjects/AnonymApp/src/app/cli/main.py for `anonymize`, `deanonymize`, and `readiness` commands with backend/input/output/mapping path arguments only (no business logic)
+- [X] T019 Implement baseline logging and error translation utilities for local runtime usage in /home/xavier/PycharmProjects/AnonymApp/src/config/logging.py
+- [X] T020 Create thin CLI entrypoint and parser routing in /home/xavier/PycharmProjects/AnonymApp/src/app/cli/main.py for `anonymize`, `deanonymize`, and `readiness` commands with backend/input/output/mapping path arguments only (no business logic)
 
 **Checkpoint**: Foundation complete; user story phases can proceed.
 
@@ -85,10 +85,10 @@ description: "Implementation tasks for Windows Desktop Anonymization MVP"
 
 **Independent Test**: User can anonymize a TXT file with backend A and export anonymized output and canonical mapping.
 
-- [ ] T021 [US1] Create contract test for wrapper compliance against engine interface in /home/xavier/PycharmProjects/AnonymApp/tests/contract/test_engine_interface_contract.py
-- [ ] T022 [US1] Create unit tests for classic wrapper loading/invocation/normalization in /home/xavier/PycharmProjects/AnonymApp/tests/unit/engines/test_classic_wrapper.py, including CPU-only initialization and no-CUDA-required behavior
-- [ ] T023 [US1] Implement thin classic wrapper with safe loading of `./tmp/anonymizer.py`, explicit CPU execution (Hugging Face `device=-1` where applicable), no GPU auto-detection reliance, and canonical output normalization in /home/xavier/PycharmProjects/AnonymApp/src/engines/classic_wrapper.py
-- [ ] T024 [US1] Implement anonymization service pipeline (TXT input -> wrapper call -> canonical result -> runtime exports) in /home/xavier/PycharmProjects/AnonymApp/src/services/anonymization_service.py
+- [X] T021 [US1] Create contract test for wrapper compliance against engine interface in /home/xavier/PycharmProjects/AnonymApp/tests/contract/test_engine_interface_contract.py
+- [X] T022 [US1] Create unit tests for classic wrapper loading/invocation/normalization in /home/xavier/PycharmProjects/AnonymApp/tests/unit/engines/test_classic_wrapper.py, including CPU-only initialization and no-CUDA-required behavior
+- [X] T023 [US1] Implement thin classic wrapper with safe loading of `./tmp/anonymizer.py`, explicit CPU execution (Hugging Face `device=-1` where applicable), no GPU auto-detection reliance, and canonical output normalization in /home/xavier/PycharmProjects/AnonymApp/src/engines/classic_wrapper.py
+- [X] T024 [US1] Implement anonymization service pipeline (TXT input -> wrapper call -> canonical result -> runtime exports) in /home/xavier/PycharmProjects/AnonymApp/src/services/anonymization_service.py
 - [ ] T025 [US1] Extend CLI anonymize command behavior on top of entrypoint/parser to support backend selection and output/mapping export to runtime directories in /home/xavier/PycharmProjects/AnonymApp/src/app/cli/main.py
 - [ ] T026 [US1] Add integration test for TXT anonymization with backend A including runtime file exports and successful CPU-only execution on machines without CUDA support in /home/xavier/PycharmProjects/AnonymApp/tests/integration/test_anonymize_txt_backend_a.py
 
