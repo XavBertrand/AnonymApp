@@ -89,8 +89,8 @@ description: "Implementation tasks for Windows Desktop Anonymization MVP"
 - [X] T022 [US1] Create unit tests for classic wrapper loading/invocation/normalization in /home/xavier/PycharmProjects/AnonymApp/tests/unit/engines/test_classic_wrapper.py, including CPU-only initialization and no-CUDA-required behavior
 - [X] T023 [US1] Implement thin classic wrapper with safe loading of `./tmp/anonymizer.py`, explicit CPU execution (Hugging Face `device=-1` where applicable), no GPU auto-detection reliance, and canonical output normalization in /home/xavier/PycharmProjects/AnonymApp/src/engines/classic_wrapper.py
 - [X] T024 [US1] Implement anonymization service pipeline (TXT input -> wrapper call -> canonical result -> runtime exports) in /home/xavier/PycharmProjects/AnonymApp/src/services/anonymization_service.py
-- [ ] T025 [US1] Extend CLI anonymize command behavior on top of entrypoint/parser to support backend selection and output/mapping export to runtime directories in /home/xavier/PycharmProjects/AnonymApp/src/app/cli/main.py
-- [ ] T026 [US1] Add integration test for TXT anonymization with backend A including runtime file exports and successful CPU-only execution on machines without CUDA support in /home/xavier/PycharmProjects/AnonymApp/tests/integration/test_anonymize_txt_backend_a.py
+- [X] T025 [US1] Extend CLI anonymize command behavior on top of entrypoint/parser to support backend selection and output/mapping export to runtime directories in /home/xavier/PycharmProjects/AnonymApp/src/app/cli/main.py
+- [X] T026 [US1] Add integration test for TXT anonymization with backend A including runtime file exports and successful CPU-only execution on machines without CUDA support in /home/xavier/PycharmProjects/AnonymApp/tests/integration/test_anonymize_txt_backend_a.py
 
 **Checkpoint**: Backend A anonymization flow is functional and testable.
 
@@ -102,9 +102,9 @@ description: "Implementation tasks for Windows Desktop Anonymization MVP"
 
 **Independent Test**: User can switch to backend B and run same TXT anonymization/export flow without CLI workflow changes.
 
-- [ ] T027 [US1] Create unit tests for transformer wrapper loading/invocation/normalization in /home/xavier/PycharmProjects/AnonymApp/tests/unit/engines/test_transformer_wrapper.py, including CPU-only initialization and no-CUDA-required behavior
-- [ ] T028 [US1] Implement thin transformer wrapper with safe loading of `./tmp/transformer_anonymizer.py`, explicit CPU execution for transformers/GLiNER/Torch paths, no GPU auto-detection reliance, and canonical output normalization in /home/xavier/PycharmProjects/AnonymApp/src/engines/transformer_wrapper.py
-- [ ] T029 [US1] Extend anonymization service backend registry/selection logic for both wrappers in /home/xavier/PycharmProjects/AnonymApp/src/services/anonymization_service.py
+- [X] T027 [US1] Create unit tests for transformer wrapper loading/invocation/normalization in /home/xavier/PycharmProjects/AnonymApp/tests/unit/engines/test_transformer_wrapper.py, including CPU-only initialization and no-CUDA-required behavior
+- [X] T028 [US1] Implement thin transformer wrapper with safe loading of `./tmp/transformer_anonymizer.py`, explicit CPU execution for transformers/GLiNER/Torch paths, no GPU auto-detection reliance, and canonical output normalization in /home/xavier/PycharmProjects/AnonymApp/src/engines/transformer_wrapper.py
+- [X] T029 [US1] Extend anonymization service backend registry/selection logic for both wrappers in /home/xavier/PycharmProjects/AnonymApp/src/services/anonymization_service.py
 - [ ] T030 [US3] Add integration test for backend switching with unchanged CLI flow and CPU-only backend initialization behavior in /home/xavier/PycharmProjects/AnonymApp/tests/integration/test_anonymize_txt_backend_b.py
 - [ ] T031 [US3] Extend contract test assertions to verify parity of canonical fields across both wrappers in /home/xavier/PycharmProjects/AnonymApp/tests/contract/test_engine_interface_contract.py
 

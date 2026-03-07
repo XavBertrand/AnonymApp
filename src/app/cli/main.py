@@ -16,14 +16,27 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     anonymize = subparsers.add_parser("anonymize", help="Anonymize a TXT file")
-    anonymize.add_argument("--backend", required=True, choices=["classic", "transformer"])
+    anonymize.add_argument(
+        "--engine",
+        "--backend",
+        dest="engine",
+        required=True,
+        choices=["classic", "transformer"],
+        help="Engine identifier to run (classic|transformer).",
+    )
     anonymize.add_argument("--input", required=True)
     anonymize.add_argument("--output", required=False)
     anonymize.add_argument("--mapping", required=False)
     anonymize.set_defaults(handler=_handle_anonymize)
 
     deanonymize = subparsers.add_parser("deanonymize", help="Deanonymize using mapping")
-    deanonymize.add_argument("--backend", required=True, choices=["classic", "transformer"])
+    deanonymize.add_argument(
+        "--engine",
+        "--backend",
+        dest="engine",
+        required=True,
+        choices=["classic", "transformer"],
+    )
     deanonymize.add_argument("--input", required=True)
     deanonymize.add_argument("--output", required=False)
     deanonymize.add_argument("--mapping", required=True)
@@ -58,11 +71,12 @@ def _handle_anonymize(args: argparse.Namespace) -> int:
 
     paths = _normalize_paths(args)
     job = run_anonymization_job(
-        backend=args.backend,
+        backend=args.engine,
         input_path=paths["input"],
         output_path=paths.get("output"),
         mapping_path=paths.get("mapping"),
     )
+    print(f"Engine: {args.engine}")
     print(f"Anonymized output: {job.output_path}")
     print(f"Mapping artifact: {job.mapping_path}")
     return 0

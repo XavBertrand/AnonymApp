@@ -6,8 +6,9 @@ from pathlib import Path
 from src.adapters.documents.txt_adapter import TxtDocumentAdapter
 from src.adapters.mappings.canonical_mapping_adapter import CanonicalMappingAdapter
 from src.config.settings import MAPPINGS_DIR, OUTPUTS_DIR, ensure_runtime_dirs
-from src.engines.base import EngineInitConfig
+from src.engines.base import EngineInitConfig, EngineWrapper
 from src.engines.classic_wrapper import ClassicWrapper
+from src.engines.transformer_wrapper import TransformerWrapper
 from src.models.canonical_result import CanonicalAnonymizationResult
 from src.models.mapping_artifact import MappingArtifact, MappingEntry, MappingOrigin
 
@@ -22,15 +23,18 @@ class AnonymizationJobResult:
 class AnonymizationService:
     def __init__(
         self,
-        wrappers: dict[str, object] | None = None,
+        wrappers: dict[str, EngineWrapper] | None = None,
         document_adapter: TxtDocumentAdapter | None = None,
         mapping_adapter: CanonicalMappingAdapter | None = None,
     ) -> None:
-        self._wrappers = wrappers or {"classic": ClassicWrapper()}
+        self._wrappers = wrappers or {
+            "classic": ClassicWrapper(),
+            "transformer": TransformerWrapper(),
+        }
         self._document_adapter = document_adapter or TxtDocumentAdapter()
         self._mapping_adapter = mapping_adapter or CanonicalMappingAdapter()
 
-    def _resolve_wrapper(self, backend: str) -> object:
+    def _resolve_wrapper(self, backend: str) -> EngineWrapper:
         wrapper = self._wrappers.get(backend)
         if wrapper is None:
             raise ValueError(f"Unsupported backend '{backend}' for this phase")
@@ -47,10 +51,10 @@ class AnonymizationService:
     @staticmethod
     def _to_mapping_artifact(result: CanonicalAnonymizationResult) -> MappingArtifact:
         entries: list[MappingEntry] = []
-        for entity in result.mapping.get("entities", []):
-            placeholder = str(entity.get("tag", "")).strip()
-            original_value = str(entity.get("canonical", "")).strip()
-            entity_type = str(entity.get("type", "UNKNOWN")).strip() or "UNKNOWN"
+        for entity in result.entities:
+            placeholder = str(entity.replacement_value).strip()
+            original_value = str(entity.source_value).strip()
+            entity_type = str(entity.entity_type).strip() or "UNKNOWN"
             if not placeholder:
                 continue
             entries.append(
