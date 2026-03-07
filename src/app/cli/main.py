@@ -30,13 +30,6 @@ def build_parser() -> argparse.ArgumentParser:
     anonymize.set_defaults(handler=_handle_anonymize)
 
     deanonymize = subparsers.add_parser("deanonymize", help="Deanonymize using mapping")
-    deanonymize.add_argument(
-        "--engine",
-        "--backend",
-        dest="engine",
-        required=True,
-        choices=["classic", "transformer"],
-    )
     deanonymize.add_argument("--input", required=True)
     deanonymize.add_argument("--output", required=False)
     deanonymize.add_argument("--mapping", required=True)
@@ -83,8 +76,17 @@ def _handle_anonymize(args: argparse.Namespace) -> int:
 
 
 def _handle_deanonymize(args: argparse.Namespace) -> int:
-    # Deanonymization service is introduced in a later task phase.
-    raise NotImplementedError("Deanonymization command is not implemented in this phase.")
+    from src.services.deanonymization_service import run_deanonymization_job
+
+    paths = _normalize_paths(args)
+    job = run_deanonymization_job(
+        input_path=paths["input"],
+        mapping_path=paths["mapping"],
+        output_path=paths.get("output"),
+    )
+    print(f"Origin engine: {job.engine_id}")
+    print(f"Deanonymized output: {job.output_path}")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:

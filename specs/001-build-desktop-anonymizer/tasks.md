@@ -105,8 +105,8 @@ description: "Implementation tasks for Windows Desktop Anonymization MVP"
 - [X] T027 [US1] Create unit tests for transformer wrapper loading/invocation/normalization in /home/xavier/PycharmProjects/AnonymApp/tests/unit/engines/test_transformer_wrapper.py, including CPU-only initialization and no-CUDA-required behavior
 - [X] T028 [US1] Implement thin transformer wrapper with safe loading of `./tmp/transformer_anonymizer.py`, explicit CPU execution for transformers/GLiNER/Torch paths, no GPU auto-detection reliance, and canonical output normalization in /home/xavier/PycharmProjects/AnonymApp/src/engines/transformer_wrapper.py
 - [X] T029 [US1] Extend anonymization service backend registry/selection logic for both wrappers in /home/xavier/PycharmProjects/AnonymApp/src/services/anonymization_service.py
-- [ ] T030 [US3] Add integration test for backend switching with unchanged CLI flow and CPU-only backend initialization behavior in /home/xavier/PycharmProjects/AnonymApp/tests/integration/test_anonymize_txt_backend_b.py
-- [ ] T031 [US3] Extend contract test assertions to verify parity of canonical fields across both wrappers in /home/xavier/PycharmProjects/AnonymApp/tests/contract/test_engine_interface_contract.py
+- [X] T030 [US3] Add integration test for backend switching with unchanged CLI flow and CPU-only backend initialization behavior in /home/xavier/PycharmProjects/AnonymApp/tests/integration/test_anonymize_txt_backend_b.py
+- [X] T031 [US3] Extend contract test assertions to verify parity of canonical fields across both wrappers in /home/xavier/PycharmProjects/AnonymApp/tests/contract/test_engine_interface_contract.py
 
 **Checkpoint**: Both backends support the same anonymization workflow and contract.
 
@@ -118,10 +118,10 @@ description: "Implementation tasks for Windows Desktop Anonymization MVP"
 
 **Independent Test**: User can deanonymize with valid mapping and receives actionable errors for incompatible mapping.
 
-- [ ] T032 [US2] Implement deanonymization service with mapping compatibility checks and origin-backend routing in /home/xavier/PycharmProjects/AnonymApp/src/services/deanonymization_service.py
-- [ ] T033 [US2] Extend canonical mapping adapter to enforce compatibility failure reasons and remediation hints in /home/xavier/PycharmProjects/AnonymApp/src/adapters/mappings/canonical_mapping_adapter.py
-- [ ] T034 [US2] Implement CLI deanonymize command using imported canonical mapping artifacts in /home/xavier/PycharmProjects/AnonymApp/src/app/cli/main.py
-- [ ] T035 [US2] Add integration tests for mapping export/import roundtrip and incompatible mapping failures in /home/xavier/PycharmProjects/AnonymApp/tests/integration/test_mapping_roundtrip.py
+- [X] T032 [US2] Implement deanonymization service with mapping compatibility checks and origin-backend routing in /home/xavier/PycharmProjects/AnonymApp/src/services/deanonymization_service.py
+- [X] T033 [US2] Extend canonical mapping adapter to enforce compatibility failure reasons and remediation hints in /home/xavier/PycharmProjects/AnonymApp/src/adapters/mappings/canonical_mapping_adapter.py
+- [X] T034 [US2] Implement CLI deanonymize command using imported canonical mapping artifacts in /home/xavier/PycharmProjects/AnonymApp/src/app/cli/main.py
+- [X] T035 [US2] Add integration tests for mapping export/import roundtrip and incompatible mapping failures in /home/xavier/PycharmProjects/AnonymApp/tests/integration/test_mapping_roundtrip.py
 
 **Checkpoint**: Mapping-driven deanonymization is functional and validated.
 
