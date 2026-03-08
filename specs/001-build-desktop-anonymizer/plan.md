@@ -12,7 +12,9 @@ backends, canonical result normalization, mapping export/import, and
 mapping-based deanonymization. Keep architecture layered so a desktop UI can be
 added on top of the same application services without backend-specific coupling.
 Add an explicit bootstrap layer for Windows-first runtime/dependency/model
-readiness without mixing that responsibility into engine wrappers.
+readiness without mixing that responsibility into engine wrappers. Enforce
+CPU-only execution intentionally so the product works on standard Windows
+desktops used by non-technical users.
 
 ## Technical Context
 
@@ -23,7 +25,7 @@ readiness without mixing that responsibility into engine wrappers.
 **Target Platform**: Windows 10/11 desktop (primary), Linux/WSL for development only  
 **Project Type**: desktop-app backend core + thin MVP interface (CLI-first)  
 **Performance Goals**: TXT anonymization workflow completes in under 10s for typical files (<1 MB) on standard desktop hardware  
-**Constraints**: Local-only core workflow, thin wrapper integration only, no cloud dependency, no backend logic rewrite, wrappers load `./tmp` scripts in-place (no move/rewrite), Windows path/process compatibility  
+**Constraints**: Local-only core workflow, thin wrapper integration only, no cloud dependency, no backend logic rewrite, wrappers load `./tmp` scripts in-place (no move/rewrite), Windows path/process compatibility, CPU-only runtime (no required CUDA/MPS/DirectML path), explicit disable of auto device selection in wrappers  
 **Scale/Scope**: Single-user desktop MVP; TXT-only document adapter implemented; PDF/DOCX/XLSX prepared as extension points only
 
 ## Constitution Check
@@ -35,6 +37,8 @@ readiness without mixing that responsibility into engine wrappers.
 - Stable Engine Interface: PASS. Both wrappers implement a common internal engine interface and return canonical result.
 - Incremental Delivery: PASS. Phase plan delivers runnable increments after each phase.
 - Local-First: PASS. Core anonymization and deanonymization are local-only; optional services are non-blocking.
+- CPU-Only Execution: PASS. Runtime and backend init rules require CPU mode and
+  prohibit required GPU acceleration assumptions.
 - Deterministic + Auditable: PASS. Canonical result + canonical mapping artifact include metadata for audit and reproducibility.
 - Robust Error Handling: PASS. Readiness checks and runtime error translation are first-class phase outputs.
 - Testability: PASS. Wrapper, workflow, and mapping compatibility tests are planned in each increment.
@@ -120,7 +124,8 @@ tmp/
 **Structure Decision**: Single Python project with strict layering. MVP uses a
 simple CLI in `src/app/cli` to keep UI minimal while preserving UI/application
 separation for future desktop UI replacement. Runtime/dependency/model checks
-live in `src/bootstrap` only; wrappers remain thin integration adapters.
+live in `src/bootstrap` only; wrappers remain thin integration adapters. CPU-only
+execution policy is enforced in bootstrap + wrapper initialization, not in UI.
 
 ## Implementation Phases
 
@@ -133,6 +138,8 @@ live in `src/bootstrap` only; wrappers remain thin integration adapters.
 - Finalize Windows runtime bootstrap/readiness strategy for non-technical users.
 - Finalize controlled loading strategy for local `./tmp/*.py` scripts without
   moving them or requiring `tmp` to be a formal package.
+- Finalize CPU-only backend initialization rules (`device=-1` for HF pipelines,
+  Torch/GLiNER on CPU, no auto accelerator selection).
 
 ### Phase 1: Foundation and Contracts
 
@@ -148,6 +155,8 @@ live in `src/bootstrap` only; wrappers remain thin integration adapters.
 - Implement wrapper for `tmp/anonymizer.py`.
 - Implement safe controlled loading/invocation of `tmp/anonymizer.py` from
   wrapper without moving or rewriting source script.
+- Force CPU mode in wrapper initialization (no CUDA/MPS/DirectML path; no auto
+  device fallback).
 - Wire anonymization service to canonical result pipeline.
 - Enable TXT anonymization, preview output, export anonymized text + mapping.
 - Add unit/integration tests for wrapper and workflow.
@@ -158,6 +167,8 @@ live in `src/bootstrap` only; wrappers remain thin integration adapters.
 - Implement safe controlled loading/invocation of
   `tmp/transformer_anonymizer.py` from wrapper without moving or rewriting
   source script.
+- Force CPU mode for transformer + GLiNER initialization and ignore accelerator
+  availability even when GPU libraries are installed.
 - Ensure backend switching works with unchanged UI flow.
 - Add parity tests against common engine interface and canonical result.
 
@@ -173,6 +184,8 @@ live in `src/bootstrap` only; wrappers remain thin integration adapters.
 - Implement first-launch bootstrap flow and backend readiness reporting.
 - Validate missing dependency/model messaging is actionable and non-technical.
 - Confirm no Linux-only assumptions in paths/process handling.
+- Confirm bootstrap checks focus on Python dependencies, model availability, and
+  optional services; do not gate execution on GPU detection/configuration.
 - Confirm bootstrap responsibilities are not duplicated in wrappers/config.
 
 ## Post-Design Constitution Re-Check
@@ -183,6 +196,8 @@ live in `src/bootstrap` only; wrappers remain thin integration adapters.
 - Local-first behavior preserved across anonymization/deanonymization flows: PASS.
 - Test coverage planned for wrappers, workflows, and compatibility rules: PASS.
 - Bootstrap responsibilities isolated in dedicated layer: PASS.
+- CPU-only execution requirements preserved across wrapper + bootstrap design:
+  PASS.
 
 ## Complexity Tracking
 

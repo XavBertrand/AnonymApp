@@ -52,7 +52,13 @@ def test_classic_wrapper_works_without_cuda_runtime(tmp_path: Path) -> None:
     assert wrapper.anonymize("text").anonymized_text == "<PER_1>"
 
 
-def test_classic_wrapper_reports_missing_script() -> None:
-    wrapper = ClassicWrapper(script_path=Path("/tmp/does-not-exist-anonymizer.py"))
+def test_classic_wrapper_reports_missing_script(tmp_path: Path) -> None:
+    missing_script = tmp_path / "missing-anonymizer.py"
+    wrapper = ClassicWrapper(script_path=missing_script)
+
+    descriptor = wrapper.initialize(EngineInitConfig(engine_id="classic", options={}))
+    assert descriptor.availability_status == "unavailable"
+    assert any(check.check_name == "script_load" and check.status == "fail" for check in descriptor.readiness_checks)
+
     with pytest.raises(RuntimeError):
-        wrapper.initialize(EngineInitConfig(engine_id="classic", options={}))
+        wrapper.anonymize("text")

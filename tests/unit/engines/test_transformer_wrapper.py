@@ -98,10 +98,16 @@ def test_transformer_wrapper_works_without_cuda_runtime(tmp_path: Path) -> None:
     assert wrapper.anonymize("x").mapping["meta"]["device"] == -1
 
 
-def test_transformer_wrapper_reports_missing_script() -> None:
-    wrapper = TransformerWrapper(script_path=Path("/tmp/does-not-exist-transformer.py"))
+def test_transformer_wrapper_reports_missing_script(tmp_path: Path) -> None:
+    missing_script = tmp_path / "missing-transformer.py"
+    wrapper = TransformerWrapper(script_path=missing_script)
+
+    descriptor = wrapper.initialize(EngineInitConfig(engine_id="transformer", options={}))
+    assert descriptor.availability_status == "unavailable"
+    assert any(check.check_name == "script_load" and check.status == "fail" for check in descriptor.readiness_checks)
+
     with pytest.raises(RuntimeError):
-        wrapper.initialize(EngineInitConfig(engine_id="transformer", options={}))
+        wrapper.anonymize("text")
 
 
 def test_transformer_and_classic_parity_on_canonical_fields(tmp_path: Path) -> None:

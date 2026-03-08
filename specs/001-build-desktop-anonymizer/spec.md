@@ -15,6 +15,9 @@
 - **Determinism & Auditability**: The feature standardizes anonymization results into a canonical structure with anonymized text, mapping artifacts, and run metadata so outputs are reproducible and auditable.
 - **Extensibility Impact**: Engine wrappers and document adapters are defined as interchangeable components, allowing additional engines and formats to be added without changing UI workflows.
 - **Windows Desktop Usability**: The MVP targets non-technical Windows users and prepares for self-contained desktop packaging so users do not depend on manual Python or command-line setup.
+- **CPU-Only Execution**: The MVP intentionally targets CPU-only execution to
+  maximize compatibility on standard Windows desktops; GPU acceleration is not a
+  requirement for functional behavior.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -31,7 +34,9 @@ A user selects a local TXT file, chooses one of the two available anonymization 
 1. **Given** a valid local TXT file and backend A selected, **When** the user runs anonymization, **Then** the application shows anonymized text in the preview and enables export of anonymized text and mapping data.
 2. **Given** a valid local TXT file and backend B selected, **When** the user runs anonymization, **Then** the application shows anonymized text in the same UI workflow and enables export of anonymized text and mapping data.
 3. **Given** an anonymization result from either backend, **When** the user exports artifacts, **Then** exported outputs contain anonymized text and mapping data consistent with the shown preview.
-4. **Given** a standard Windows desktop with the installed application, **When** a non-technical user starts anonymization, **Then** no command-line interaction or manual dependency setup is required.
+4. **Given** a packaged Windows release of the application, **When** a
+   non-technical user starts anonymization, **Then** no command-line interaction
+   or manual dependency setup is required.
 
 ---
 
@@ -102,21 +107,49 @@ A user switches between backends without changing the UI workflow and receives a
 - **FR-018**: System MUST avoid Linux-only operational assumptions in user-facing workflows and runtime behavior.
 - **FR-019**: System MUST allow backend switching within the same UI flow without requiring workflow changes from the user.
 - **FR-020**: System MUST preserve future option for cross-platform support without making it an MVP requirement.
-- **FR-021**: System MUST provide an end-user workflow that does not require users to install Python, manage dependencies manually, or run command-line tools.
+- **FR-021**: For the packaged Windows release target, system MUST provide an
+  end-user workflow that does not require users to install Python, manage
+  dependencies manually, or run command-line tools; a thin CLI interface is
+  acceptable for MVP/internal delivery as an intermediate step.
 - **FR-022**: System MUST define packaging requirements for a self-contained Windows desktop distribution suitable for non-technical users.
-- **FR-023**: System MUST integrate `./tmp/anonymizer.py` and `./tmp/transformer_anonymizer.py` through thin wrapper modules that only adapt inputs, invoke the backend, normalize outputs, and handle configuration/error translation.
-- **FR-024**: Thin wrappers MUST NOT duplicate, reimplement, or alter core anonymization logic contained in the source scripts.
-- **FR-025**: System MUST define one canonical anonymization result object used by UI and higher layers for all backend outputs.
+- **FR-023**: As the implementation rule for FR-003, system MUST integrate
+  `./tmp/anonymizer.py` and `./tmp/transformer_anonymizer.py` through thin
+  wrapper modules that only adapt inputs, invoke the backend, normalize outputs,
+  and handle configuration/error translation.
+- **FR-024**: As a guardrail for FR-002/FR-003, thin wrappers MUST NOT
+  duplicate, reimplement, or alter core anonymization logic contained in the
+  source scripts.
+- **FR-025**: As the implementation rule for FR-005, system MUST define one
+  canonical anonymization result object used by UI and higher layers for all
+  backend outputs.
 - **FR-026**: The canonical anonymization result object MUST include, at minimum: `anonymized_text`, `mapping`, `entities`, `engine_id`, `processing_metadata`, and optional `pseudonym_metadata`.
 - **FR-027**: Backend-specific output formats MUST be converted into the canonical anonymization result before being returned to application/service or UI layers.
 - **FR-028**: Exported mapping artifacts for MVP MUST use a canonical mapping format; backend-native mapping export is out of scope unless explicitly added in a future feature.
-- **FR-029**: Canonical mapping artifacts MUST include origin metadata sufficient to verify compatibility for deanonymization (including `engine_id` and mapping schema version).
+- **FR-029**: Canonical mapping artifacts MUST include metadata required for
+  compatibility verification: `origin.engine_id`, `schema_version`,
+  `origin.generated_at`, `origin.wrapper_contract_version`, and
+  `mapping_format`.
 - **FR-030**: System MUST validate mapping compatibility before deanonymization and MUST route deanonymization through the backend wrapper matching the mapping's origin metadata.
 - **FR-031**: If the required backend for mapping-based deanonymization is unavailable, the system MUST block execution and provide actionable recovery guidance.
 - **FR-032**: System MUST define a backend readiness workflow that verifies runtime dependencies and required model assets for each backend at startup and on first launch.
-- **FR-033**: System MUST provide user-facing readiness status per backend (ready, degraded, unavailable) with remediation guidance suitable for non-technical Windows users.
+- **FR-033**: System MUST provide user-facing readiness status per backend
+  (`ready`, `degraded`, `unavailable`) with remediation guidance suitable for
+  non-technical Windows users, with minimum state criteria:
+  `ready` = all required runtime and model checks pass;
+  `degraded` = core local anonymization is available but at least one optional
+  capability/check fails;
+  `unavailable` = one or more required runtime/model checks fail, so backend
+  execution is blocked.
 - **FR-034**: System MUST define Windows runtime bootstrap behavior so end users can launch and use the app without manual Python environment creation.
 - **FR-035**: On first launch, system MUST execute dependency validation and present a clear status summary before anonymization can start.
+- **FR-036**: System MUST run all anonymization and deanonymization workflows in
+  CPU-only mode.
+- **FR-037**: System MUST NOT require or assume CUDA, MPS, or any GPU runtime to
+  function.
+- **FR-038**: Backend initialization MUST force Hugging Face pipelines to
+  `device=-1` and MUST load Torch-based models on CPU.
+- **FR-039**: System MUST explicitly disable GPU device selection in application
+  runtime behavior, even when CUDA libraries are present.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -126,8 +159,9 @@ A user switches between backends without changing the UI workflow and receives a
   `anonymized_text`, `mapping`, `entities`, `engine_id`, `processing_metadata`,
   and optional `pseudonym_metadata`.
 - **Mapping Artifact**: Canonical persisted mapping dataset used for export,
-  audit, and deanonymization workflows; includes origin metadata (engine
-  identifier and schema/version) for compatibility checks.
+  audit, and deanonymization workflows; includes compatibility metadata:
+  `origin.engine_id`, `schema_version`, `origin.generated_at`,
+  `origin.wrapper_contract_version`, and `mapping_format`.
 - **Document Asset**: Input/output file representation including file type, path, validation state, and encoding metadata.
 - **Application Configuration**: Local settings for backend preferences, runtime behavior, output locations, and logging controls.
 
@@ -138,6 +172,9 @@ A user switches between backends without changing the UI workflow and receives a
 - The two existing backend scripts are functionally valid and remain the behavioral reference.
 - Backend-specific output differences can be normalized into one canonical internal result without changing core engine logic.
 - Windows is the primary user platform; Linux/WSL may be used for development but not required for end-user runtime.
+- The `<10s` runtime target for typical TXT files under 1 MB is a non-binding
+  MVP planning assumption (guidance target), not a release-gate requirement in
+  this specification.
 
 ## Dependencies
 
@@ -145,11 +182,15 @@ A user switches between backends without changing the UI workflow and receives a
 - Availability of required local runtime dependencies for each backend on Windows desktops.
 - Local filesystem access for reading TXT files and writing output/mapping/log artifacts.
 - Availability of backend model assets required for each anonymization engine.
+- CPU execution environment availability is sufficient; GPU libraries are
+  optional and must not be required.
 
 ## Mapping Compatibility Rules
 
 - MVP exports mapping artifacts in canonical format only.
-- Each mapping file MUST include origin metadata and schema/version metadata.
+- Each mapping file MUST include `origin.engine_id`, `schema_version`,
+  `origin.generated_at`, `origin.wrapper_contract_version`, and
+  `mapping_format`.
 - Deanonymization MUST validate mapping schema/version and origin metadata before
   execution.
 - Deanonymization MUST use the backend wrapper identified by mapping origin
@@ -165,8 +206,27 @@ A user switches between backends without changing the UI workflow and receives a
   per-backend status and remediation guidance.
 - On every launch, the app MUST check backend initialization readiness before the
   user starts anonymization.
+- Backend readiness state semantics MUST be consistent with FR-033:
+  `ready` (all required checks pass),
+  `degraded` (required checks pass, optional checks fail),
+  `unavailable` (one or more required checks fail).
 - If dependencies or model assets are missing, the app MUST provide clear
   recovery guidance in plain language and keep unaffected backends available.
+- Runtime readiness checks MUST validate CPU-only backend configuration and MUST
+  not require CUDA/MPS availability.
+- If CUDA libraries are present, application behavior MUST remain CPU-only and
+  deterministic.
+
+## Backend Initialization Guidelines
+
+- Both backends MUST be initialized in CPU mode.
+- Hugging Face pipelines MUST use `device=-1`.
+- Torch model loading MUST target CPU and MUST NOT rely on `cuda` or `mps`
+  availability.
+- Backend wrappers/bootstrap logic MUST disable or ignore GPU device-selection
+  hints from runtime defaults.
+- CPU-only execution is intentional to ensure compatibility with standard
+  Windows desktops used by non-technical users.
 
 ## Non-Goals
 

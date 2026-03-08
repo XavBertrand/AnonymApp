@@ -11,7 +11,7 @@ from rapidfuzz import fuzz
 from unidecode import unidecode
 from transformers import pipeline
 
-from asr_jetson.postprocessing.anonymizer import (
+from anonymizer import (
     DATE_RE,
     EMAIL_RE,
     IBAN_RE,
