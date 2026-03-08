@@ -12,6 +12,7 @@ from src.config.settings import OUTPUTS_DIR, ensure_runtime_dirs
 from src.engines.base import EngineInitConfig, EngineWrapper
 from src.engines.classic_wrapper import ClassicWrapper
 from src.engines.transformer_wrapper import TransformerWrapper
+from src.services.readiness_service import ReadinessService
 
 
 @dataclass(frozen=True)
@@ -28,13 +29,17 @@ class DeanonymizationService:
         wrappers: dict[str, EngineWrapper] | None = None,
         document_adapter: TxtDocumentAdapter | None = None,
         mapping_adapter: CanonicalMappingAdapter | None = None,
+        readiness_service: ReadinessService | None = None,
     ) -> None:
+        using_default_wrappers = wrappers is None
         self._wrappers = wrappers or {
             "classic": ClassicWrapper(),
             "transformer": TransformerWrapper(),
         }
         self._document_adapter = document_adapter or TxtDocumentAdapter()
         self._mapping_adapter = mapping_adapter or CanonicalMappingAdapter()
+        self._enforce_readiness = readiness_service is not None or using_default_wrappers
+        self._readiness_service = readiness_service or (ReadinessService() if self._enforce_readiness else None)
 
     @staticmethod
     def _default_output_path(input_path: Path, backend: str) -> Path:
@@ -67,6 +72,8 @@ class DeanonymizationService:
 
         backend = mapping_artifact.origin.engine_id
         wrapper = self._resolve_wrapper(backend)
+        if self._readiness_service is not None:
+            self._readiness_service.assert_backend_usable(backend, operation="deanonymization")
 
         descriptor = wrapper.initialize(EngineInitConfig(engine_id=backend, options={}))
         self._mapping_adapter.validate_origin_backend_availability(

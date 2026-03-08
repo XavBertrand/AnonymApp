@@ -6,7 +6,7 @@ from pathlib import Path
 
 from src.config.logging import configure_logging, log_and_translate_error
 from src.config.settings import ensure_runtime_dirs
-from src.services.readiness_service import format_readiness_report, get_readiness_report
+from src.services.readiness_service import ReadinessService, format_readiness_report
 
 LOGGER = logging.getLogger(__name__)
 
@@ -52,7 +52,10 @@ def _normalize_paths(args: argparse.Namespace) -> dict[str, Path]:
 
 
 def _handle_readiness(args: argparse.Namespace) -> int:
-    report = get_readiness_report()
+    report = getattr(args, "_startup_readiness_report", None)
+    if report is None:
+        readiness_service = getattr(args, "_readiness_service", ReadinessService())
+        report = readiness_service.get_readiness_report()
     if args.backend:
         report = [r for r in report if r.engine_id == args.backend]
     print(format_readiness_report(report))
@@ -95,6 +98,11 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = build_parser()
     args = parser.parse_args(argv)
+    readiness_service = ReadinessService()
+    startup_report = readiness_service.get_readiness_report(refresh=True)
+    setattr(args, "_readiness_service", readiness_service)
+    setattr(args, "_startup_readiness_report", startup_report)
+    LOGGER.info("Startup readiness report:\n%s", format_readiness_report(startup_report))
 
     handler = getattr(args, "handler", None)
     if handler is None:

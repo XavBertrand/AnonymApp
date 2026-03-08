@@ -1,1 +1,28 @@
 /.envrc
+/.codex/
+runtime/*
+!runtime/.gitkeep
+!runtime/outputs/.gitkeep
+!runtime/mappings/.gitkeep
+!runtime/logs/.gitkeep
+
+# Python build/test artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Editor/OS artifacts
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp

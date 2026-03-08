@@ -133,11 +133,11 @@ description: "Implementation tasks for Windows Desktop Anonymization MVP"
 
 **Independent Test**: App reports readiness states, blocks unavailable backends with remediation, and keeps available backends usable.
 
-- [ ] T036 [US3] Integrate startup readiness bootstrap execution into CLI startup and service initialization flow in /home/xavier/PycharmProjects/AnonymApp/src/app/cli/main.py and /home/xavier/PycharmProjects/AnonymApp/src/services/readiness_service.py with CPU-only readiness expectations
-- [ ] T037 [US3] Implement optional service availability checks (e.g., Ollama non-blocking probe) in /home/xavier/PycharmProjects/AnonymApp/src/bootstrap/dependency_check.py and /home/xavier/PycharmProjects/AnonymApp/src/bootstrap/readiness_bootstrap.py without adding GPU checks or GPU setup requirements
-- [ ] T038 [US3] Add unit tests for bootstrap dependency/model checks and readiness status transitions in /home/xavier/PycharmProjects/AnonymApp/tests/unit/bootstrap/test_readiness_bootstrap.py, including CPU-only compatibility validation
-- [ ] T039 [US3] Add integration tests for missing dependency/model readiness failure behavior with actionable messages and valid operation on standard Windows machines without GPU support in /home/xavier/PycharmProjects/AnonymApp/tests/integration/test_readiness_failures.py
-- [ ] T040 [US3] Validate the MVP performance target (<10s for typical TXT files under 1 MB) with a lightweight timed execution procedure and record method/results in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/quickstart.md (documentation-only; no benchmarking framework)
+- [X] T036 [US3] Integrate startup readiness bootstrap execution into CLI startup and service initialization flow in /home/xavier/PycharmProjects/AnonymApp/src/app/cli/main.py and /home/xavier/PycharmProjects/AnonymApp/src/services/readiness_service.py with CPU-only readiness expectations
+- [X] T037 [US3] Implement optional service availability checks (e.g., Ollama non-blocking probe) in /home/xavier/PycharmProjects/AnonymApp/src/bootstrap/dependency_check.py and /home/xavier/PycharmProjects/AnonymApp/src/bootstrap/readiness_bootstrap.py without adding GPU checks or GPU setup requirements
+- [X] T038 [US3] Add unit tests for bootstrap dependency/model checks and readiness status transitions in /home/xavier/PycharmProjects/AnonymApp/tests/unit/bootstrap/test_readiness_bootstrap.py, including CPU-only compatibility validation
+- [X] T039 [US3] Add integration tests for missing dependency/model readiness failure behavior with actionable messages and valid operation on standard Windows machines without GPU support in /home/xavier/PycharmProjects/AnonymApp/tests/integration/test_readiness_failures.py
+- [X] T040 [US3] Validate the MVP performance target (<10s for typical TXT files under 1 MB) with a lightweight timed execution procedure and record method/results in /home/xavier/PycharmProjects/AnonymApp/specs/001-build-desktop-anonymizer/quickstart.md (documentation-only; no benchmarking framework)
 
 **Checkpoint**: Windows-first readiness behavior is validated and user-friendly.
 

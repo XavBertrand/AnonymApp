@@ -11,6 +11,7 @@ from src.engines.classic_wrapper import ClassicWrapper
 from src.engines.transformer_wrapper import TransformerWrapper
 from src.models.canonical_result import CanonicalAnonymizationResult
 from src.models.mapping_artifact import MappingArtifact, MappingEntry, MappingOrigin
+from src.services.readiness_service import ReadinessService
 
 
 @dataclass(frozen=True)
@@ -26,13 +27,17 @@ class AnonymizationService:
         wrappers: dict[str, EngineWrapper] | None = None,
         document_adapter: TxtDocumentAdapter | None = None,
         mapping_adapter: CanonicalMappingAdapter | None = None,
+        readiness_service: ReadinessService | None = None,
     ) -> None:
+        using_default_wrappers = wrappers is None
         self._wrappers = wrappers or {
             "classic": ClassicWrapper(),
             "transformer": TransformerWrapper(),
         }
         self._document_adapter = document_adapter or TxtDocumentAdapter()
         self._mapping_adapter = mapping_adapter or CanonicalMappingAdapter()
+        self._enforce_readiness = readiness_service is not None or using_default_wrappers
+        self._readiness_service = readiness_service or (ReadinessService() if self._enforce_readiness else None)
 
     def _resolve_wrapper(self, backend: str) -> EngineWrapper:
         wrapper = self._wrappers.get(backend)
@@ -84,6 +89,8 @@ class AnonymizationService:
     ) -> AnonymizationJobResult:
         ensure_runtime_dirs()
         wrapper = self._resolve_wrapper(backend)
+        if self._readiness_service is not None:
+            self._readiness_service.assert_backend_usable(backend, operation="anonymization")
         wrapper.initialize(config=EngineInitConfig(engine_id=backend, options={}))
 
         text = self._document_adapter.load(input_path)
