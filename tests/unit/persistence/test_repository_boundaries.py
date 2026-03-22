@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sqlite3
+import pytest
 
 from src.adapters.persistence.case_repository import CaseRepository
 from src.adapters.persistence.database import MetadataDatabase
@@ -42,3 +44,34 @@ def test_persistence_modules_stay_data_focused() -> None:
     for path in repo_files:
         content = path.read_text(encoding="utf-8")
         assert "src.services" not in content
+
+
+def test_sqlite_foreign_keys_are_enforced(tmp_path: Path) -> None:
+    database = MetadataDatabase(tmp_path / "metadata.sqlite3")
+    database.bootstrap()
+
+    with database.connect() as connection:
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                """
+                INSERT INTO documents (
+                    document_id, case_id, source_filename, source_display_path, imported_copy_path,
+                    source_fingerprint, preview_snippet, imported_at, last_processed_at,
+                    document_status, last_error_summary, latest_output_artifact_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "doc-1",
+                    "missing-case",
+                    "piece.txt",
+                    "/tmp/piece.txt",
+                    None,
+                    "abc",
+                    "snippet",
+                    "2026-03-22T00:00:00+00:00",
+                    None,
+                    "new",
+                    None,
+                    None,
+                ),
+            )

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
+import sqlite3
 from uuid import uuid4
 
 from src.adapters.persistence.database import MetadataDatabase
@@ -29,6 +30,7 @@ class DocumentRepository:
         imported_copy_path: Path | None,
         source_fingerprint: str,
         preview_snippet: str,
+        connection: sqlite3.Connection | None = None,
     ) -> DocumentRecord:
         now = _utc_now()
         record = DocumentRecord(
@@ -45,8 +47,10 @@ class DocumentRepository:
             last_error_summary=None,
             latest_output_artifact_id=None,
         )
-        with self._database.connect() as connection:
-            connection.execute(
+        owns_connection = connection is None
+        db_connection = connection or self._database.connect()
+        try:
+            db_connection.execute(
                 """
                 INSERT INTO documents (
                     document_id, case_id, source_filename, source_display_path, imported_copy_path,
@@ -60,7 +64,11 @@ class DocumentRepository:
                 """,
                 asdict(record),
             )
-            connection.commit()
+            if owns_connection:
+                db_connection.commit()
+        finally:
+            if owns_connection:
+                db_connection.close()
         return record
 
     def list_by_case(self, case_id: str) -> list[DocumentRecord]:
@@ -78,9 +86,12 @@ class DocumentRepository:
         document_status: str,
         last_error_summary: str | None,
         latest_output_artifact_id: str | None,
+        connection: sqlite3.Connection | None = None,
     ) -> None:
-        with self._database.connect() as connection:
-            connection.execute(
+        owns_connection = connection is None
+        db_connection = connection or self._database.connect()
+        try:
+            db_connection.execute(
                 """
                 UPDATE documents
                 SET document_status = ?, last_error_summary = ?, latest_output_artifact_id = ?, last_processed_at = ?
@@ -88,4 +99,8 @@ class DocumentRepository:
                 """,
                 (document_status, last_error_summary, latest_output_artifact_id, _utc_now(), document_id),
             )
-            connection.commit()
+            if owns_connection:
+                db_connection.commit()
+        finally:
+            if owns_connection:
+                db_connection.close()

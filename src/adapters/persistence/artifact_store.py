@@ -41,11 +41,13 @@ class ArtifactStore:
 
     def output_path(self, case_id: str, display_name: str, source_path: Path, job_id: str) -> Path:
         dirs = self.ensure_case_dirs(case_id, display_name)
-        return dirs["outputs"] / f"{source_path.stem}-{job_id[:8]}.anon.txt"
+        fingerprint = self.fingerprint(source_path)[:8]
+        return dirs["outputs"] / f"{source_path.stem}-{fingerprint}-{job_id[:8]}.anon.txt"
 
     def mapping_path(self, case_id: str, display_name: str, source_path: Path, job_id: str) -> Path:
         dirs = self.ensure_case_dirs(case_id, display_name)
-        return dirs["mappings"] / f"{source_path.stem}-{job_id[:8]}.mapping.json"
+        fingerprint = self.fingerprint(source_path)[:8]
+        return dirs["mappings"] / f"{source_path.stem}-{fingerprint}-{job_id[:8]}.mapping.json"
 
     @staticmethod
     def fingerprint(source_path: Path) -> str:

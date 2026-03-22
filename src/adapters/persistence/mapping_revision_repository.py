@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import sqlite3
 
 from src.adapters.persistence.database import MetadataDatabase
 from src.adapters.persistence.records import MappingRevisionRecord
@@ -14,9 +15,16 @@ class MappingRevisionRepository:
     def _from_row(row) -> MappingRevisionRecord:
         return MappingRevisionRecord(**dict(row))
 
-    def create(self, record: MappingRevisionRecord) -> MappingRevisionRecord:
-        with self._database.connect() as connection:
-            connection.execute(
+    def create(
+        self,
+        record: MappingRevisionRecord,
+        *,
+        connection: sqlite3.Connection | None = None,
+    ) -> MappingRevisionRecord:
+        owns_connection = connection is None
+        db_connection = connection or self._database.connect()
+        try:
+            db_connection.execute(
                 """
                 INSERT INTO mapping_revisions (
                     case_id, revision_number, created_at, change_reason, base_revision_number,
@@ -28,7 +36,11 @@ class MappingRevisionRepository:
                 """,
                 asdict(record),
             )
-            connection.commit()
+            if owns_connection:
+                db_connection.commit()
+        finally:
+            if owns_connection:
+                db_connection.close()
         return record
 
     def get_latest(self, case_id: str) -> MappingRevisionRecord | None:

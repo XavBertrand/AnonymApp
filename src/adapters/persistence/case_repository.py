@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import datetime, timezone
+import sqlite3
 from uuid import uuid4
 
 from src.adapters.persistence.database import MetadataDatabase
@@ -20,7 +21,7 @@ class CaseRepository:
     def _from_row(row) -> CaseRecord:
         return CaseRecord(**dict(row))
 
-    def create(self, display_name: str) -> CaseRecord:
+    def create(self, display_name: str, *, connection: sqlite3.Connection | None = None) -> CaseRecord:
         now = _utc_now()
         record = CaseRecord(
             case_id=uuid4().hex,
@@ -32,8 +33,10 @@ class CaseRepository:
             active_mapping_revision=None,
             deleted_at=None,
         )
-        with self._database.connect() as connection:
-            connection.execute(
+        owns_connection = connection is None
+        db_connection = connection or self._database.connect()
+        try:
+            db_connection.execute(
                 """
                 INSERT INTO cases (
                     case_id, display_name, created_at, updated_at, last_opened_at,
@@ -45,7 +48,11 @@ class CaseRepository:
                 """,
                 asdict(record),
             )
-            connection.commit()
+            if owns_connection:
+                db_connection.commit()
+        finally:
+            if owns_connection:
+                db_connection.close()
         return record
 
     def get(self, case_id: str) -> CaseRecord | None:
@@ -76,14 +83,26 @@ class CaseRepository:
             )
             connection.commit()
 
-    def update_status(self, case_id: str, *, status_summary: str, active_mapping_revision: int | None) -> None:
-        with self._database.connect() as connection:
-            connection.execute(
+    def update_status(
+        self,
+        case_id: str,
+        *,
+        status_summary: str,
+        connection: sqlite3.Connection | None = None,
+    ) -> None:
+        owns_connection = connection is None
+        db_connection = connection or self._database.connect()
+        try:
+            db_connection.execute(
                 """
                 UPDATE cases
-                SET status_summary = ?, active_mapping_revision = ?, updated_at = ?
+                SET status_summary = ?, updated_at = ?
                 WHERE case_id = ?
                 """,
-                (status_summary, active_mapping_revision, _utc_now(), case_id),
+                (status_summary, _utc_now(), case_id),
             )
-            connection.commit()
+            if owns_connection:
+                db_connection.commit()
+        finally:
+            if owns_connection:
+                db_connection.close()

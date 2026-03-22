@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from src.adapters.documents.registry import DocumentAdapterRegistry
 from src.adapters.documents.txt_adapter import TxtDocumentAdapter
 from src.adapters.mappings.canonical_mapping_adapter import (
     CanonicalMappingAdapter,
@@ -27,14 +28,16 @@ class DeanonymizationService:
         self,
         wrappers: dict[str, EngineWrapper] | None = None,
         document_adapter: TxtDocumentAdapter | None = None,
+        document_registry: DocumentAdapterRegistry | None = None,
         mapping_adapter: CanonicalMappingAdapter | None = None,
         readiness_service: ReadinessService | None = None,
     ) -> None:
         using_default_wrappers = wrappers is None
+        base_adapter = document_adapter or TxtDocumentAdapter()
         self._wrappers = wrappers or {
             "transformer": TransformerWrapper(),
         }
-        self._document_adapter = document_adapter or TxtDocumentAdapter()
+        self._document_registry = document_registry or DocumentAdapterRegistry([base_adapter])
         self._mapping_adapter = mapping_adapter or CanonicalMappingAdapter()
         self._enforce_readiness = readiness_service is not None or using_default_wrappers
         self._readiness_service = readiness_service or (ReadinessService() if self._enforce_readiness else None)
@@ -79,11 +82,16 @@ class DeanonymizationService:
             availability_status=descriptor.availability_status,
         )
 
-        anonymized_text = self._document_adapter.load(input_path)
+        input_adapter = self._document_registry.resolve_for_path(input_path)
+        anonymized_text = input_adapter.load(input_path)
         deanonymized_text = wrapper.deanonymize(anonymized_text, mapping_artifact)
 
         resolved_output = output_path or self._default_output_path(input_path, backend)
-        self._document_adapter.save(resolved_output, deanonymized_text)
+        try:
+            output_adapter = self._document_registry.resolve_for_path(resolved_output)
+        except ValueError:
+            output_adapter = self._document_registry.get(input_adapter.format_name)
+        output_adapter.save(resolved_output, deanonymized_text)
 
         return DeanonymizationJobResult(
             deanonymized_text=deanonymized_text,

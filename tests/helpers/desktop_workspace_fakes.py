@@ -6,9 +6,13 @@ from pathlib import Path
 from src.adapters.mappings.canonical_mapping_adapter import CanonicalMappingAdapter
 from src.adapters.persistence.artifact_store import ArtifactStore
 from src.adapters.persistence.database import MetadataDatabase
+from src.adapters.documents.registry import DocumentAdapterRegistry
+from src.adapters.documents.txt_adapter import TxtDocumentAdapter
+from src.engines.base import EngineWrapper
 from src.models.backend_descriptor import BackendDescriptor, ReadinessCheckResult
 from src.models.canonical_result import CanonicalAnonymizationResult, EntityReplacement, ProcessingMetadata
 from src.models.mapping_artifact import MappingArtifact, MappingEntry, MappingOrigin
+from src.services.anonymization_service import AnonymizationService
 from src.services.anonymization_service import AnonymizationJobResult
 from src.services.case_workspace_service import CaseWorkspaceService
 from src.services.readiness_service import ReadinessService
@@ -56,6 +60,31 @@ class FakeAnonymizationService:
         self._plans_by_filename = plans_by_filename or {}
         self._failing_filenames = failing_filenames or set()
 
+    @staticmethod
+    def _replace_with_trusted_ranges(text: str, source_value: str, pseudonym: str) -> tuple[str, list[tuple[int, int]]]:
+        if not source_value:
+            return text, []
+        rebuilt: list[str] = []
+        ranges: list[tuple[int, int]] = []
+        cursor = 0
+        output_length = 0
+        while True:
+            found = text.find(source_value, cursor)
+            if found < 0:
+                tail = text[cursor:]
+                rebuilt.append(tail)
+                output_length += len(tail)
+                break
+            chunk = text[cursor:found]
+            rebuilt.append(chunk)
+            output_length += len(chunk)
+            start = output_length
+            rebuilt.append(pseudonym)
+            output_length += len(pseudonym)
+            ranges.append((start, output_length))
+            cursor = found + len(source_value)
+        return "".join(rebuilt), ranges
+
     def run(
         self,
         *,
@@ -72,12 +101,19 @@ class FakeAnonymizationService:
         entities: list[EntityReplacement] = []
         artifact_entries: list[MappingEntry] = []
         for item in plan:
-            anonymized_text = anonymized_text.replace(item.original_value, item.pseudonym)
+            anonymized_text, trusted_ranges = self._replace_with_trusted_ranges(
+                anonymized_text,
+                item.original_value,
+                item.pseudonym,
+            )
             entities.append(
                 EntityReplacement(
                     entity_type=item.entity_type,
                     source_value=item.original_value,
                     replacement_value=item.pseudonym,
+                    start_offset=trusted_ranges[0][0] if len(trusted_ranges) == 1 else None,
+                    end_offset=trusted_ranges[0][1] if len(trusted_ranges) == 1 else None,
+                    offsets_trusted=len(trusted_ranges) == 1,
                 )
             )
             artifact_entries.append(
@@ -85,6 +121,7 @@ class FakeAnonymizationService:
                     placeholder=item.pseudonym,
                     original_value=item.original_value,
                     entity_type=item.entity_type,
+                    position_ranges=trusted_ranges,
                 )
             )
 
@@ -114,11 +151,15 @@ def build_workspace_service(
     *,
     plans_by_filename: dict[str, list[MappingPlanEntry]] | None = None,
     failing_filenames: set[str] | None = None,
+    anonymization_service=None,
+    document_registry: DocumentAdapterRegistry | None = None,
+    **service_overrides,
 ) -> CaseWorkspaceService:
-    mapping_adapter = CanonicalMappingAdapter()
+    mapping_adapter = service_overrides.pop("mapping_adapter", CanonicalMappingAdapter())
     artifact_store = ArtifactStore(tmp_path / "cases", tmp_path / "exports")
-    database = MetadataDatabase(tmp_path / "desktop.sqlite3")
-    anonymization_service = FakeAnonymizationService(
+    database = service_overrides.pop("database", MetadataDatabase(tmp_path / "desktop.sqlite3"))
+    document_registry = document_registry or DocumentAdapterRegistry([TxtDocumentAdapter()])
+    anonymization_service = anonymization_service or FakeAnonymizationService(
         mapping_adapter=mapping_adapter,
         plans_by_filename=plans_by_filename,
         failing_filenames=failing_filenames,
@@ -128,5 +169,70 @@ def build_workspace_service(
         artifact_store=artifact_store,
         mapping_adapter=mapping_adapter,
         anonymization_service=anonymization_service,
+        readiness_service=FakeReadinessService(),
+        document_registry=document_registry,
+        **service_overrides,
+    )
+
+
+class SpyTxtDocumentAdapter(TxtDocumentAdapter):
+    def __init__(self) -> None:
+        self.load_calls: list[Path] = []
+        self.save_calls: list[Path] = []
+
+    def load(self, path: Path) -> str:
+        self.load_calls.append(path)
+        return super().load(path)
+
+    def save(self, path: Path, content: str) -> None:
+        self.save_calls.append(path)
+        super().save(path, content)
+
+
+@dataclass(frozen=True)
+class StubWrapperResult:
+    anonymized_text: str
+    entities: list[EntityReplacement]
+
+
+class StubEngineWrapper:
+    engine_id = "transformer"
+
+    def __init__(self, result: StubWrapperResult) -> None:
+        self._result = result
+
+    def initialize(self, config) -> BackendDescriptor:
+        _ = config
+        return FakeReadinessService().get_readiness_report()[0]
+
+    def anonymize(self, text: str, options: dict | None = None) -> CanonicalAnonymizationResult:
+        _ = (text, options)
+        return CanonicalAnonymizationResult(
+            anonymized_text=self._result.anonymized_text,
+            mapping={},
+            entities=self._result.entities,
+            engine_id="transformer",
+            processing_metadata=ProcessingMetadata(request_id="req-stub", duration_ms=1),
+        )
+
+    def deanonymize(self, anonymized_text: str, mapping_artifact: MappingArtifact) -> str:
+        _ = mapping_artifact
+        return anonymized_text
+
+    def readiness_checks(self) -> list[ReadinessCheckResult]:
+        return FakeReadinessService().get_readiness_report()[0].readiness_checks
+
+
+def build_real_anonymization_service_with_spy(
+    *,
+    adapter: SpyTxtDocumentAdapter,
+    anonymized_text: str,
+    entities: list[EntityReplacement],
+) -> AnonymizationService:
+    registry = DocumentAdapterRegistry([adapter])
+    wrapper: EngineWrapper = StubEngineWrapper(StubWrapperResult(anonymized_text=anonymized_text, entities=entities))
+    return AnonymizationService(
+        wrappers={"transformer": wrapper},
+        document_registry=registry,
         readiness_service=FakeReadinessService(),
     )

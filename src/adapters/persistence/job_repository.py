@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import sqlite3
 
 from src.adapters.persistence.database import MetadataDatabase
 from src.adapters.persistence.records import JobRecord
@@ -14,9 +15,11 @@ class JobRepository:
     def _from_row(row) -> JobRecord:
         return JobRecord(**dict(row))
 
-    def create(self, record: JobRecord) -> JobRecord:
-        with self._database.connect() as connection:
-            connection.execute(
+    def create(self, record: JobRecord, *, connection: sqlite3.Connection | None = None) -> JobRecord:
+        owns_connection = connection is None
+        db_connection = connection or self._database.connect()
+        try:
+            db_connection.execute(
                 """
                 INSERT INTO jobs (
                     job_id, case_id, job_type, started_at, completed_at, job_status,
@@ -30,12 +33,18 @@ class JobRepository:
                 """,
                 asdict(record),
             )
-            connection.commit()
+            if owns_connection:
+                db_connection.commit()
+        finally:
+            if owns_connection:
+                db_connection.close()
         return record
 
-    def update(self, record: JobRecord) -> JobRecord:
-        with self._database.connect() as connection:
-            connection.execute(
+    def update(self, record: JobRecord, *, connection: sqlite3.Connection | None = None) -> JobRecord:
+        owns_connection = connection is None
+        db_connection = connection or self._database.connect()
+        try:
+            db_connection.execute(
                 """
                 UPDATE jobs
                 SET completed_at = :completed_at,
@@ -50,7 +59,11 @@ class JobRepository:
                 """,
                 asdict(record),
             )
-            connection.commit()
+            if owns_connection:
+                db_connection.commit()
+        finally:
+            if owns_connection:
+                db_connection.close()
         return record
 
     def list_by_case(self, case_id: str) -> list[JobRecord]:

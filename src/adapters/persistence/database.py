@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from src.config.desktop_settings import DESKTOP_METADATA_DB, ensure_desktop_dirs
@@ -125,6 +127,7 @@ class MetadataDatabase:
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path)
         connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
     def bootstrap(self) -> None:
@@ -132,3 +135,16 @@ class MetadataDatabase:
             for statement in _SCHEMA:
                 connection.execute(statement)
             connection.commit()
+
+    @contextmanager
+    def transaction(self) -> Iterator[sqlite3.Connection]:
+        connection = self.connect()
+        try:
+            yield connection
+        except Exception:
+            connection.rollback()
+            raise
+        else:
+            connection.commit()
+        finally:
+            connection.close()

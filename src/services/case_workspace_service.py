@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-import json
-from dataclasses import replace
-from datetime import datetime, timezone
 from pathlib import Path
-from uuid import uuid4
 
 from src.adapters.documents.registry import DocumentAdapterRegistry
 from src.adapters.documents.txt_adapter import TxtDocumentAdapter
@@ -30,19 +26,11 @@ from src.app.ui_contracts.case_workspace_view_models import (
     WorkspaceLoadViewModel,
 )
 from src.services.anonymization_service import AnonymizationService
+from src.services.case_batch_service import CaseBatchService
 from src.services.case_mapping_policy import CaseMappingPolicy
 from src.services.mapping_revision_service import MappingRevisionService
 from src.services.readiness_service import ReadinessService
 from src.services.stale_state_service import StaleStateService
-
-
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def _snippet(text: str, *, limit: int = 80) -> str:
-    compact = " ".join(text.split())
-    return compact[:limit]
 
 
 class CaseWorkspaceService:
@@ -80,13 +68,28 @@ class CaseWorkspaceService:
         self._document_registry = document_registry or DocumentAdapterRegistry([TxtDocumentAdapter()])
         self._mapping_adapter = mapping_adapter or CanonicalMappingAdapter()
         self._readiness_service = readiness_service or ReadinessService()
-        self._anonymization_service = anonymization_service or AnonymizationService(document_adapter=TxtDocumentAdapter())
+        self._anonymization_service = anonymization_service or AnonymizationService(
+            document_registry=self._document_registry,
+        )
         self._case_mapping_policy = case_mapping_policy or CaseMappingPolicy()
         self._mapping_revision_service = mapping_revision_service or MappingRevisionService(
             mapping_repo,
             self._case_mapping_policy,
         )
         self._stale_state_service = stale_state_service or StaleStateService()
+        self._batch_service = CaseBatchService(
+            database=self._database,
+            case_repository=self._case_repository,
+            document_repository=self._document_repository,
+            job_repository=self._job_repository,
+            artifact_repository=self._artifact_repository,
+            artifact_store=self._artifact_store,
+            document_registry=self._document_registry,
+            mapping_adapter=self._mapping_adapter,
+            mapping_revision_service=self._mapping_revision_service,
+            anonymization_service=self._anonymization_service,
+            readiness_service=self._readiness_service,
+        )
 
     def _readiness_summary(self) -> ReadinessSummaryViewModel:
         report = self._readiness_service.get_readiness_report()
@@ -121,7 +124,7 @@ class CaseWorkspaceService:
             case_id=case_record.case_id,
             display_name=case_record.display_name,
             status_summary=case_record.status_summary,
-            active_mapping_revision=case_record.active_mapping_revision,
+            active_mapping_revision=self._mapping_revision_service.latest_revision_number(case_id),
             documents=tuple(
                 DocumentItemViewModel(
                     document_id=item.document_id,
@@ -163,152 +166,29 @@ class CaseWorkspaceService:
         self._case_repository.set_last_opened(case_id)
         return self._to_workspace(case_id)
 
-    def _create_job(self, case_id: str, item_count: int) -> JobRecord:
-        record = JobRecord(
-            job_id=uuid4().hex,
-            case_id=case_id,
-            job_type="anonymization_batch",
-            started_at=_utc_now(),
-            completed_at=None,
-            job_status="running",
-            mapping_revision_used=self._mapping_revision_service.latest_revision_number(case_id),
-            item_count=item_count,
-            success_count=0,
-            failure_count=0,
-            error_summary=None,
-            readiness_snapshot=json.dumps(
-                [
-                    {
-                        "engine_id": item.engine_id,
-                        "availability_status": item.availability_status,
-                    }
-                    for item in self._readiness_service.get_readiness_report()
-                ]
-            ),
-        )
-        return self._job_repository.create(record)
-
     def run_case_anonymization(self, case_id: str, txt_file_paths: list[Path]) -> BatchRunViewModel:
         case_record = self._case_repository.get(case_id)
         if case_record is None:
             raise ValueError(f"Unknown case '{case_id}'")
-        job = self._create_job(case_id, len(txt_file_paths))
-        items: list[BatchRunItemViewModel] = []
-        progress_messages: list[str] = []
-        latest_revision = self._mapping_revision_service.latest_revision_number(case_id)
-
-        for index, source_path in enumerate(txt_file_paths, start=1):
-            output_path = self._artifact_store.output_path(case_id, case_record.display_name, source_path, job.job_id)
-            mapping_path = self._artifact_store.mapping_path(case_id, case_record.display_name, source_path, job.job_id)
-            document_record = None
-            try:
-                adapter = self._document_registry.resolve_for_path(source_path)
-                imported_copy = self._artifact_store.import_copy(case_id, case_record.display_name, source_path)
-                preview_text = adapter.load(source_path)
-                document_record = self._document_repository.create(
-                    case_id=case_id,
-                    source_path=source_path,
-                    imported_copy_path=imported_copy,
-                    source_fingerprint=self._artifact_store.fingerprint(source_path),
-                    preview_snippet=_snippet(preview_text),
-                )
-                result = self._anonymization_service.run(
-                    backend="transformer",
-                    input_path=source_path,
-                    output_path=output_path,
-                    mapping_path=mapping_path,
-                )
-                artifact = self._mapping_adapter.load(mapping_path)
-                merge_result, revision_record = self._mapping_revision_service.merge_incoming_artifact(
-                    case_id=case_id,
-                    incoming_artifact=artifact,
-                    anonymized_text=result.result.anonymized_text,
-                    change_reason=f"batch-import:{source_path.name}",
-                    created_by_action="run_case_anonymization",
-                )
-                if revision_record is not None:
-                    latest_revision = revision_record.revision_number
-                normalized_output_path = result.output_path
-                normalized_mapping_path = result.mapping_path
-                adapter.save(normalized_output_path, merge_result.normalized_text)
-                self._mapping_adapter.dump(merge_result.normalized_artifact, normalized_mapping_path)
-                artifact_record = ArtifactRecord(
-                    artifact_id=uuid4().hex,
-                    case_id=case_id,
-                    document_id=document_record.document_id,
-                    artifact_type="anonymized_text",
-                    display_name=normalized_output_path.name,
-                    file_path=str(normalized_output_path),
-                    created_at=_utc_now(),
-                    mapping_revision_used=latest_revision,
-                    artifact_status="current",
-                    stale_reason=None,
-                    supersedes_artifact_id=None,
-                    preview_snippet=_snippet(merge_result.normalized_text),
-                    job_id=job.job_id,
-                    mapping_path=str(normalized_mapping_path),
-                )
-                artifact_record = self._artifact_repository.create(artifact_record)
-                self._document_repository.update_processing(
-                    document_id=document_record.document_id,
-                    document_status="success",
-                    last_error_summary=None,
-                    latest_output_artifact_id=artifact_record.artifact_id,
-                )
-                job = replace(
-                    job,
-                    success_count=job.success_count + 1,
-                    mapping_revision_used=latest_revision,
-                )
-                progress_messages.append(f"{index}/{len(txt_file_paths)} {source_path.name}: success")
-                items.append(
-                    BatchRunItemViewModel(
-                        source_filename=source_path.name,
-                        status="success",
-                        output_path=str(normalized_output_path),
-                        mapping_path=str(normalized_mapping_path),
-                        error_summary=None,
-                        mapping_revision=latest_revision,
-                    )
-                )
-            except Exception as exc:
-                if document_record is not None:
-                    self._document_repository.update_processing(
-                        document_id=document_record.document_id,
-                        document_status="failed",
-                        last_error_summary=str(exc),
-                        latest_output_artifact_id=None,
-                    )
-                job = replace(job, failure_count=job.failure_count + 1, error_summary=str(exc))
-                progress_messages.append(f"{index}/{len(txt_file_paths)} {source_path.name}: failed")
-                items.append(
-                    BatchRunItemViewModel(
-                        source_filename=source_path.name,
-                        status="failed",
-                        output_path=None,
-                        mapping_path=None,
-                        error_summary=str(exc),
-                        mapping_revision=latest_revision,
-                    )
-                )
-
-        final_status = "success" if job.failure_count == 0 else ("partial" if job.success_count else "failed")
-        job = replace(
-            job,
-            completed_at=_utc_now(),
-            job_status=final_status,
-        )
-        self._job_repository.update(job)
-        case_status = "partial" if job.failure_count else "ready"
-        self._case_repository.update_status(case_id, status_summary=case_status, active_mapping_revision=latest_revision)
+        batch_result = self._batch_service.run_case_anonymization(case_record, txt_file_paths)
         workspace = self._to_workspace(case_id)
         return BatchRunViewModel(
             case_id=case_id,
-            job_id=job.job_id,
-            status=final_status,
-            items=tuple(items),
+            job_id=batch_result.job.job_id,
+            status=batch_result.job.job_status,
+            items=tuple(
+                BatchRunItemViewModel(
+                    source_filename=item.source_filename,
+                    status=item.status,
+                    output_path=item.output_path,
+                    mapping_path=item.mapping_path,
+                    error_summary=item.error_summary,
+                    mapping_revision=item.mapping_revision,
+                )
+                for item in batch_result.items
+            ),
             workspace=workspace,
-            processed_count=job.success_count,
-            failed_count=job.failure_count,
-            progress_messages=tuple(progress_messages),
+            processed_count=batch_result.job.success_count,
+            failed_count=batch_result.job.failure_count,
+            progress_messages=batch_result.progress_messages,
         )

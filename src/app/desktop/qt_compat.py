@@ -5,6 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 try:  # pragma: no cover - exercised only when PySide6 is installed
+    from PySide6.QtCore import QThread, QTimer
     from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget
 
     PYSIDE6_AVAILABLE = True
@@ -14,6 +15,16 @@ try:  # pragma: no cover - exercised only when PySide6 is installed
         if instance is None:
             instance = QApplication([])
         return instance
+
+    def dispatch_to_main_thread(callback) -> None:
+        application = ensure_application()
+        if application.thread() == QThread.currentThread():
+            callback()
+            return
+        QTimer.singleShot(0, application, callback)
+
+    def process_events() -> None:
+        ensure_application().processEvents()
 except ModuleNotFoundError:  # pragma: no cover - default in CI for this repository
     PYSIDE6_AVAILABLE = False
 
@@ -77,3 +88,9 @@ except ModuleNotFoundError:  # pragma: no cover - default in CI for this reposit
 
     def ensure_application() -> QApplication:
         return QApplication([])
+
+    def dispatch_to_main_thread(callback) -> None:
+        callback()
+
+    def process_events() -> None:
+        return None

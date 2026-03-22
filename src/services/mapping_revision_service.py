@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from datetime import datetime, timezone
+import sqlite3
 
 from src.adapters.persistence.mapping_revision_repository import MappingRevisionRepository
 from src.adapters.persistence.records import MappingRevisionRecord
@@ -42,6 +43,7 @@ class MappingRevisionService:
         anonymized_text: str,
         change_reason: str,
         created_by_action: str,
+        connection: sqlite3.Connection | None = None,
     ) -> tuple[MappingMergeResult, MappingRevisionRecord | None]:
         latest = self._repository.get_latest(case_id)
         current_entries = self.get_active_entries(case_id)
@@ -66,4 +68,4 @@ class MappingRevisionService:
             created_by_action=created_by_action,
             entries_json=json.dumps([asdict(entry) for entry in merge_result.active_entries]),
         )
-        return merge_result, self._repository.create(record)
+        return merge_result, self._repository.create(record, connection=connection)

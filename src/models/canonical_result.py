@@ -13,6 +13,7 @@ class EntityReplacement:
     confidence: float | None = None
     start_offset: int | None = None
     end_offset: int | None = None
+    offsets_trusted: bool = False
 
 
 @dataclass(frozen=True)

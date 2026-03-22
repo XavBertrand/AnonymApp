@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import sqlite3
 
 from src.adapters.persistence.database import MetadataDatabase
 from src.adapters.persistence.records import ArtifactRecord
@@ -14,9 +15,11 @@ class ArtifactRepository:
     def _from_row(row) -> ArtifactRecord:
         return ArtifactRecord(**dict(row))
 
-    def create(self, record: ArtifactRecord) -> ArtifactRecord:
-        with self._database.connect() as connection:
-            connection.execute(
+    def create(self, record: ArtifactRecord, *, connection: sqlite3.Connection | None = None) -> ArtifactRecord:
+        owns_connection = connection is None
+        db_connection = connection or self._database.connect()
+        try:
+            db_connection.execute(
                 """
                 INSERT INTO artifacts (
                     artifact_id, case_id, document_id, artifact_type, display_name, file_path,
@@ -30,7 +33,11 @@ class ArtifactRepository:
                 """,
                 asdict(record),
             )
-            connection.commit()
+            if owns_connection:
+                db_connection.commit()
+        finally:
+            if owns_connection:
+                db_connection.close()
         return record
 
     def list_by_case(self, case_id: str) -> list[ArtifactRecord]:
