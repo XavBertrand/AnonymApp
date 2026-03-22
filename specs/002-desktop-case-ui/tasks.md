@@ -28,11 +28,11 @@
 
 **Purpose**: Add desktop, persistence, document-adapter, packaging, and test scaffolding without changing current CLI behavior.
 
-- [ ] T001 Add desktop and packaging dependencies to `pyproject.toml`
-- [ ] T002 Create package skeleton files in `src/app/desktop/__init__.py`, `src/app/desktop/widgets/__init__.py`, `src/app/desktop/presenters/__init__.py`, `src/app/desktop/workers/__init__.py`, `src/app/desktop/copy/__init__.py`, `src/adapters/documents/__init__.py`, `src/adapters/persistence/__init__.py`, `tests/ui/__init__.py`, `tests/packaging/__init__.py`, and `tests/unit/adapters/documents/__init__.py`
-- [ ] T003 [P] Add desktop-specific path and storage constants in `src/config/desktop_settings.py`
-- [ ] T004 [P] Define UI-facing DTO/view model module in `src/app/ui_contracts/case_workspace_view_models.py`
-- [ ] T005 [P] Create portable packaging script stubs in `scripts/packaging/build_windows_portable.py` and `scripts/packaging/smoke_test_portable.py`
+- [X] T001 Add desktop and packaging dependencies to `pyproject.toml`
+- [X] T002 Create package skeleton files in `src/app/desktop/__init__.py`, `src/app/desktop/widgets/__init__.py`, `src/app/desktop/presenters/__init__.py`, `src/app/desktop/workers/__init__.py`, `src/app/desktop/copy/__init__.py`, `src/adapters/documents/__init__.py`, `src/adapters/persistence/__init__.py`, `tests/ui/__init__.py`, `tests/packaging/__init__.py`, and `tests/unit/adapters/documents/__init__.py`
+- [X] T003 [P] Add desktop-specific path and storage constants in `src/config/desktop_settings.py`
+- [X] T004 [P] Define UI-facing DTO/view model module in `src/app/ui_contracts/case_workspace_view_models.py`
+- [X] T005 [P] Create portable packaging script stubs in `scripts/packaging/build_windows_portable.py` and `scripts/packaging/smoke_test_portable.py`
 
 ---
 
@@ -44,46 +44,46 @@
 
 ### Persistence
 
-- [ ] T006 Create metadata database bootstrap and schema management in `src/adapters/persistence/database.py`
-- [ ] T007 [P] Define persistence record types in `src/adapters/persistence/records.py`
-- [ ] T008 [P] Create thin case repository interface and storage adapter in `src/adapters/persistence/case_repository.py`
-- [ ] T009 [P] Create thin document repository interface and storage adapter in `src/adapters/persistence/document_repository.py`
-- [ ] T010 [P] Create thin mapping revision repository interface and storage adapter in `src/adapters/persistence/mapping_revision_repository.py`
-- [ ] T011 [P] Create thin job repository interface and storage adapter in `src/adapters/persistence/job_repository.py`
-- [ ] T012 [P] Create thin artifact repository interface and storage adapter in `src/adapters/persistence/artifact_repository.py`
-- [ ] T013 [P] Create thin deanonymization session repository interface and storage adapter in `src/adapters/persistence/deanonymization_session_repository.py`
-- [ ] T014 [P] Create thin review decision repository interface and storage adapter in `src/adapters/persistence/review_decision_repository.py`
-- [ ] T015 [P] Create file-based artifact store adapter in `src/adapters/persistence/artifact_store.py`
+- [X] T006 Create metadata database bootstrap and schema management in `src/adapters/persistence/database.py`
+- [X] T007 [P] Define persistence record types in `src/adapters/persistence/records.py`
+- [X] T008 [P] Create thin case repository interface and storage adapter in `src/adapters/persistence/case_repository.py`
+- [X] T009 [P] Create thin document repository interface and storage adapter in `src/adapters/persistence/document_repository.py`
+- [X] T010 [P] Create thin mapping revision repository interface and storage adapter in `src/adapters/persistence/mapping_revision_repository.py`
+- [X] T011 [P] Create thin job repository interface and storage adapter in `src/adapters/persistence/job_repository.py`
+- [X] T012 [P] Create thin artifact repository interface and storage adapter in `src/adapters/persistence/artifact_repository.py`
+- [X] T013 [P] Create thin deanonymization session repository interface and storage adapter in `src/adapters/persistence/deanonymization_session_repository.py`
+- [X] T014 [P] Create thin review decision repository interface and storage adapter in `src/adapters/persistence/review_decision_repository.py`
+- [X] T015 [P] Create file-based artifact store adapter in `src/adapters/persistence/artifact_store.py`
 
 ### Service/Application
 
-- [ ] T016 Create the document-adapter contract and registry seam in `src/adapters/documents/contract.py` and `src/adapters/documents/registry.py`
-- [ ] T017 Create the TXT document adapter and register it through CaseWorkspaceService wiring in `src/adapters/documents/txt_adapter.py` and `src/services/case_workspace_service.py`
-- [ ] T018 Create service-layer mapping revision policy in `src/services/mapping_revision_service.py`
-- [ ] T019 Create deterministic conflict resolution policy with earliest-wins behavior in `src/services/case_mapping_policy.py`
-- [ ] T020 Create stale-state propagation service in `src/services/stale_state_service.py`
-- [ ] T021 Create CaseWorkspaceService skeleton and dependency wiring in `src/services/case_workspace_service.py`
-- [ ] T022 Enforce that MappingRevision is the single source of truth for case mapping state in `src/services/case_workspace_service.py` and `src/services/mapping_revision_service.py`
-- [ ] T023 Centralize CLI-safe shared orchestration helpers in `src/services/case_workspace_service.py` without changing `src/app/cli/main.py`, `src/services/anonymization_service.py`, or `src/services/deanonymization_service.py`
+- [X] T016 Create the document-adapter contract and registry seam in `src/adapters/documents/contract.py` and `src/adapters/documents/registry.py`
+- [X] T017 Create the TXT document adapter and register it through CaseWorkspaceService wiring in `src/adapters/documents/txt_adapter.py` and `src/services/case_workspace_service.py`
+- [X] T018 Create service-layer mapping revision policy in `src/services/mapping_revision_service.py`
+- [X] T019 Create deterministic conflict resolution policy with earliest-wins behavior in `src/services/case_mapping_policy.py`
+- [X] T020 Create stale-state propagation service in `src/services/stale_state_service.py`
+- [X] T021 Create CaseWorkspaceService skeleton and dependency wiring in `src/services/case_workspace_service.py`
+- [X] T022 Enforce that MappingRevision is the single source of truth for case mapping state in `src/services/case_workspace_service.py` and `src/services/mapping_revision_service.py`
+- [X] T023 Centralize CLI-safe shared orchestration helpers in `src/services/case_workspace_service.py` without changing `src/app/cli/main.py`, `src/services/anonymization_service.py`, or `src/services/deanonymization_service.py`
 
 ### UI (Desktop)
 
-- [ ] T024 Create desktop application bootstrap in `src/app/desktop/main.py`
-- [ ] T025 Create thin main window shell in `src/app/desktop/window.py`
-- [ ] T026 Create workspace presenter that talks only to CaseWorkspaceService in `src/app/desktop/presenters/workspace_presenter.py`
-- [ ] T027 Create background worker runner so long-running jobs stay off the UI thread in `src/app/desktop/workers/workspace_worker.py`
+- [X] T024 Create desktop application bootstrap in `src/app/desktop/main.py`
+- [X] T025 Create thin main window shell in `src/app/desktop/window.py`
+- [X] T026 Create workspace presenter that talks only to CaseWorkspaceService in `src/app/desktop/presenters/workspace_presenter.py`
+- [X] T027 Create background worker runner so long-running jobs stay off the UI thread in `src/app/desktop/workers/workspace_worker.py`
 
 ### Packaging
 
-- [ ] T028 Create PyInstaller entry configuration stub in `scripts/packaging/a4_desktop.spec`
+- [X] T028 Create PyInstaller entry configuration stub in `scripts/packaging/a4_desktop.spec`
 
 ### Tests
 
-- [ ] T029 [P] Add unit tests proving the document-adapter seam exists and TXT uses it in `tests/unit/adapters/documents/test_txt_document_adapter.py`
-- [ ] T030 [P] Add integration tests proving desktop orchestration reuses service APIs directly without CLI shell-out in `tests/integration/test_desktop_service_reuse.py`
-- [ ] T031 [P] Add unit tests for deterministic mapping policy across repeated runs in `tests/unit/services/test_case_mapping_policy.py`
-- [ ] T032 [P] Add unit tests that assert persistence adapters stay data-focused in `tests/unit/persistence/test_repository_boundaries.py`
-- [ ] T033 Add CLI regression safety baseline in `tests/integration/test_cli_desktop_regression.py`
+- [X] T029 [P] Add unit tests proving the document-adapter seam exists and TXT uses it in `tests/unit/adapters/documents/test_txt_document_adapter.py`
+- [X] T030 [P] Add integration tests proving desktop orchestration reuses service APIs directly without CLI shell-out in `tests/integration/test_desktop_service_reuse.py`
+- [X] T031 [P] Add unit tests for deterministic mapping policy across repeated runs in `tests/unit/services/test_case_mapping_policy.py`
+- [X] T032 [P] Add unit tests that assert persistence adapters stay data-focused in `tests/unit/persistence/test_repository_boundaries.py`
+- [X] T033 Add CLI regression safety baseline in `tests/integration/test_cli_desktop_regression.py`
 
 **Checkpoint**: Foundation ready. The UI can only call CaseWorkspaceService; TXT flows through the document-adapter seam; mapping logic is centralized in the service layer; persistence adapters are thin; background job execution is available.
 
@@ -97,40 +97,40 @@
 
 ### Persistence
 
-- [ ] T034 [US1] Implement case create/list/load methods in `src/adapters/persistence/case_repository.py`
-- [ ] T035 [P] [US1] Implement document import and status persistence in `src/adapters/persistence/document_repository.py`
-- [ ] T036 [P] [US1] Implement job lifecycle persistence for batch anonymization in `src/adapters/persistence/job_repository.py`
-- [ ] T037 [P] [US1] Implement artifact creation and lookup persistence in `src/adapters/persistence/artifact_repository.py`
-- [ ] T038 [P] [US1] Implement case working-file storage and exported artifact naming in `src/adapters/persistence/artifact_store.py`
+- [X] T034 [US1] Implement case create/list/load methods in `src/adapters/persistence/case_repository.py`
+- [X] T035 [P] [US1] Implement document import and status persistence in `src/adapters/persistence/document_repository.py`
+- [X] T036 [P] [US1] Implement job lifecycle persistence for batch anonymization in `src/adapters/persistence/job_repository.py`
+- [X] T037 [P] [US1] Implement artifact creation and lookup persistence in `src/adapters/persistence/artifact_repository.py`
+- [X] T038 [P] [US1] Implement case working-file storage and exported artifact naming in `src/adapters/persistence/artifact_store.py`
 
 ### Service/Application
 
-- [ ] T039 [US1] Implement `create_case`, `load_workspace`, and `open_case` orchestration in `src/services/case_workspace_service.py`
-- [ ] T040 [US1] Implement multi-file batch anonymization orchestration with sequential execution in `src/services/case_workspace_service.py`
-- [ ] T041 [US1] Implement deterministic batch mapping merge using MappingRevision in `src/services/mapping_revision_service.py`
-- [ ] T042 [US1] Apply earliest-wins conflict resolution during shared case mapping merge in `src/services/case_mapping_policy.py`
-- [ ] T043 [US1] Persist batch outputs and mapping-revision links through CaseWorkspaceService in `src/services/case_workspace_service.py`
-- [ ] T044 [US1] Map service results into UI view models only in `src/services/case_workspace_service.py` and `src/app/ui_contracts/case_workspace_view_models.py`
+- [X] T039 [US1] Implement `create_case`, `load_workspace`, and `open_case` orchestration in `src/services/case_workspace_service.py`
+- [X] T040 [US1] Implement multi-file batch anonymization orchestration with sequential execution in `src/services/case_workspace_service.py`
+- [X] T041 [US1] Implement deterministic batch mapping merge using MappingRevision in `src/services/mapping_revision_service.py`
+- [X] T042 [US1] Apply earliest-wins conflict resolution during shared case mapping merge in `src/services/case_mapping_policy.py`
+- [X] T043 [US1] Persist batch outputs and mapping-revision links through CaseWorkspaceService in `src/services/case_workspace_service.py`
+- [X] T044 [US1] Map service results into UI view models only in `src/services/case_workspace_service.py` and `src/app/ui_contracts/case_workspace_view_models.py`
 
 ### UI (Desktop)
 
-- [ ] T045 [US1] Build the left-side case list and create-case action in `src/app/desktop/widgets/case_history_panel.py`
-- [ ] T046 [P] [US1] Build the central file selection and batch-run controls in `src/app/desktop/widgets/case_workspace_panel.py`
-- [ ] T047 [P] [US1] Build the anonymization result preview panel in `src/app/desktop/widgets/result_preview_panel.py`
-- [ ] T048 [US1] Wire create/open/anonymize actions through the presenter and worker only in `src/app/desktop/presenters/workspace_presenter.py` and `src/app/desktop/workers/workspace_worker.py`
-- [ ] T049 [US1] Add per-file progress and batch status updates in `src/app/desktop/window.py` and `src/app/desktop/widgets/case_workspace_panel.py`
+- [X] T045 [US1] Build the left-side case list and create-case action in `src/app/desktop/widgets/case_history_panel.py`
+- [X] T046 [P] [US1] Build the central file selection and batch-run controls in `src/app/desktop/widgets/case_workspace_panel.py`
+- [X] T047 [P] [US1] Build the anonymization result preview panel in `src/app/desktop/widgets/result_preview_panel.py`
+- [X] T048 [US1] Wire create/open/anonymize actions through the presenter and worker only in `src/app/desktop/presenters/workspace_presenter.py` and `src/app/desktop/workers/workspace_worker.py`
+- [X] T049 [US1] Add per-file progress and batch status updates in `src/app/desktop/window.py` and `src/app/desktop/widgets/case_workspace_panel.py`
 
 ### Packaging
 
-- [ ] T050 [US1] Ensure development desktop entry point resolves packaged assets safely in `scripts/packaging/build_windows_portable.py` and `src/app/desktop/main.py`
+- [X] T050 [US1] Ensure development desktop entry point resolves packaged assets safely in `scripts/packaging/build_windows_portable.py` and `src/app/desktop/main.py`
 
 ### Tests
 
-- [ ] T051 [P] [US1] Add unit tests for case creation and batch orchestration in `tests/unit/services/test_case_workspace_service_batch.py`
-- [ ] T052 [P] [US1] Add integration tests for shared mapping across multiple TXT files in `tests/integration/test_case_batch_shared_mapping.py`
-- [ ] T053 [P] [US1] Add integration tests for deterministic conflict resolution across multiple files in `tests/integration/test_case_mapping_conflicts.py`
-- [ ] T054 [P] [US1] Add UI tests for create-case and file anonymization flow in `tests/ui/test_case_creation_and_batch.py`
-- [ ] T055 [US1] Add integration test for partial batch failure continuation in `tests/integration/test_case_batch_partial_failure.py`
+- [X] T051 [P] [US1] Add unit tests for case creation and batch orchestration in `tests/unit/services/test_case_workspace_service_batch.py`
+- [X] T052 [P] [US1] Add integration tests for shared mapping across multiple TXT files in `tests/integration/test_case_batch_shared_mapping.py`
+- [X] T053 [P] [US1] Add integration tests for deterministic conflict resolution across multiple files in `tests/integration/test_case_mapping_conflicts.py`
+- [X] T054 [P] [US1] Add UI tests for create-case and file anonymization flow in `tests/ui/test_case_creation_and_batch.py`
+- [X] T055 [US1] Add integration test for partial batch failure continuation in `tests/integration/test_case_batch_partial_failure.py`
 
 **Checkpoint**: User Story 1 is independently functional and testable as the MVP.
 

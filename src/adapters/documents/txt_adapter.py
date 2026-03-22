@@ -5,6 +5,10 @@ from pathlib import Path
 
 class TxtDocumentAdapter:
     format_name = "txt"
+    suffixes = (".txt",)
+
+    def can_handle(self, path: Path) -> bool:
+        return path.suffix.lower() in self.suffixes
 
     def load(self, path: Path) -> str:
         if not path.exists() or not path.is_file():

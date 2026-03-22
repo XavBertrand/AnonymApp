@@ -1,0 +1,1 @@
+"""Localized UI copy."""
