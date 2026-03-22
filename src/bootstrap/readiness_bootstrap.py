@@ -55,11 +55,6 @@ def _checks_for_backend(
 def build_backend_descriptors() -> list[BackendDescriptor]:
     dependency_checks = run_dependency_checks()
     model_checks = run_model_checks()
-    classic_checks = _checks_for_backend(
-        "classic",
-        dependency_checks=dependency_checks,
-        model_checks=model_checks,
-    )
     transformer_checks = _checks_for_backend(
         "transformer",
         dependency_checks=dependency_checks,
@@ -67,13 +62,6 @@ def build_backend_descriptors() -> list[BackendDescriptor]:
     )
 
     return [
-        BackendDescriptor(
-            engine_id="classic",
-            display_name="Classic HF+Regex",
-            availability_status=_status_from_checks(classic_checks),
-            capabilities=["anonymize", "deanonymize"],
-            readiness_checks=classic_checks,
-        ),
         BackendDescriptor(
             engine_id="transformer",
             display_name="Transformer GLiNER",

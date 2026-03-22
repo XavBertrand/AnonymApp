@@ -10,7 +10,6 @@ from src.adapters.mappings.canonical_mapping_adapter import (
 )
 from src.config.settings import OUTPUTS_DIR, ensure_runtime_dirs
 from src.engines.base import EngineInitConfig, EngineWrapper
-from src.engines.classic_wrapper import ClassicWrapper
 from src.engines.transformer_wrapper import TransformerWrapper
 from src.services.readiness_service import ReadinessService
 
@@ -33,7 +32,6 @@ class DeanonymizationService:
     ) -> None:
         using_default_wrappers = wrappers is None
         self._wrappers = wrappers or {
-            "classic": ClassicWrapper(),
             "transformer": TransformerWrapper(),
         }
         self._document_adapter = document_adapter or TxtDocumentAdapter()

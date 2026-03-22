@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
+import pytest
+
 from src.app.cli.main import main
 from src.engines.classic_wrapper import ClassicWrapper
 from src.engines.transformer_wrapper import TransformerWrapper
@@ -66,7 +68,7 @@ def run_transformer_anonymization(text, *, model_name="stub", device="cuda", **k
     )
 
 
-def test_cli_backend_switching_keeps_same_command_flow(monkeypatch, tmp_path: Path) -> None:
+def test_cli_uses_transformer_only_flow(monkeypatch, tmp_path: Path) -> None:
     input_path = tmp_path / "input.txt"
     input_path.write_text("Alice says hi", encoding="utf-8")
 
@@ -90,9 +92,11 @@ def test_cli_backend_switching_keeps_same_command_flow(monkeypatch, tmp_path: Pa
 
     monkeypatch.setattr("src.services.anonymization_service.run_anonymization_job", _fake_run_job)
 
-    assert main(["anonymize", "--engine", "classic", "--input", str(input_path)]) == 0
+    assert main(["anonymize", "--input", str(input_path)]) == 0
     assert main(["anonymize", "--engine", "transformer", "--input", str(input_path)]) == 0
-    assert captured_backends == ["classic", "transformer"]
+    with pytest.raises(SystemExit):
+        main(["anonymize", "--engine", "classic", "--input", str(input_path)])
+    assert captured_backends == ["transformer", "transformer"]
 
 
 def test_backend_b_switching_keeps_cpu_only_initialization(tmp_path: Path) -> None:

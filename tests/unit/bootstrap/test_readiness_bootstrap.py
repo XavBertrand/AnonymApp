@@ -18,7 +18,7 @@ def test_check_python_module_missing_required_has_remediation(monkeypatch) -> No
     result = dependency_check.check_python_module(
         "transformers",
         required=True,
-        backends=("classic",),
+        backends=("transformer",),
     )
 
     assert result.available is False
@@ -50,21 +50,15 @@ def test_check_ollama_endpoint_is_optional_non_blocking(monkeypatch) -> None:
 
 
 def test_run_model_checks_uses_backend_model_paths(monkeypatch, tmp_path: Path) -> None:
-    classic_model_dir = tmp_path / "classic-model"
-    classic_model_dir.mkdir(parents=True)
     transformer_model_dir = tmp_path / "missing-transformer-model"
 
-    monkeypatch.setenv("ANONYMAPP_CLASSIC_MODEL_PATH", str(classic_model_dir))
     monkeypatch.setenv("ANONYMAPP_TRANSFORMER_MODEL_PATH", str(transformer_model_dir))
 
     checks = run_model_checks()
     by_name = {item.model_name: item for item in checks}
 
-    classic = by_name["Jean-Baptiste/camembert-ner"]
     transformer = by_name["urchade/gliner_multi_pii-v1"]
 
-    assert classic.available is True
-    assert classic.backends == ("classic",)
     assert transformer.available is False
     assert transformer.backends == ("transformer",)
     assert "Provision model assets" in (transformer.remediation or "")
@@ -77,29 +71,21 @@ def test_readiness_status_transitions_ready_degraded_unavailable(monkeypatch) ->
             required=True,
             available=True,
             message="available",
-            backends=("classic", "transformer"),
+            backends=("transformer",),
         ),
         DependencyCheckResult(
             "torch",
             required=True,
             available=True,
             message="available",
-            backends=("classic", "transformer"),
+            backends=("transformer",),
         ),
         DependencyCheckResult(
             "cpu_only_compatibility",
             required=True,
             available=True,
             message="CPU-only mode is supported and does not require GPU acceleration.",
-            backends=("classic", "transformer"),
-        ),
-        DependencyCheckResult(
-            "requests",
-            required=False,
-            available=False,
-            message="missing (optional)",
-            remediation="Install optional module 'requests' to enable related optional features.",
-            backends=("classic",),
+            backends=("transformer",),
         ),
         DependencyCheckResult(
             "gliner",
@@ -111,13 +97,6 @@ def test_readiness_status_transitions_ready_degraded_unavailable(monkeypatch) ->
         ),
     ]
     model_checks = [
-        ModelCheckResult(
-            "Jean-Baptiste/camembert-ner",
-            required=True,
-            available=True,
-            message="model available",
-            backends=("classic",),
-        ),
         ModelCheckResult(
             "urchade/gliner_multi_pii-v1",
             required=True,
@@ -134,7 +113,6 @@ def test_readiness_status_transitions_ready_degraded_unavailable(monkeypatch) ->
     descriptors = build_backend_descriptors()
     by_engine = {descriptor.engine_id: descriptor for descriptor in descriptors}
 
-    assert by_engine["classic"].availability_status == "degraded"
     assert by_engine["transformer"].availability_status == "unavailable"
 
 
@@ -147,4 +125,3 @@ def test_run_dependency_checks_includes_cpu_only_compatibility() -> None:
     assert len(cpu_checks) == 1
     assert cpu_checks[0].required is True
     assert cpu_checks[0].available is True
-

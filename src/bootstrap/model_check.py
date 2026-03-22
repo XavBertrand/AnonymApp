@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-ALL_BACKENDS = ("classic", "transformer")
+ALL_BACKENDS = ("transformer",)
 
 
 @dataclass(frozen=True)
@@ -69,12 +69,6 @@ def check_model_path(
 
 def run_model_checks() -> list[ModelCheckResult]:
     checks = [
-        check_model_path(
-            "Jean-Baptiste/camembert-ner",
-            required=True,
-            backends=("classic",),
-            env_override_var="ANONYMAPP_CLASSIC_MODEL_PATH",
-        ),
         check_model_path(
             "urchade/gliner_multi_pii-v1",
             required=True,

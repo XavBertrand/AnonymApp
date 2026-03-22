@@ -20,9 +20,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--engine",
         "--backend",
         dest="engine",
-        required=True,
-        choices=["classic", "transformer"],
-        help="Engine identifier to run (classic|transformer).",
+        required=False,
+        default="transformer",
+        choices=["transformer"],
+        help="Engine identifier to run (transformer only).",
     )
     anonymize.add_argument("--input", required=True)
     anonymize.add_argument("--output", required=False)
@@ -36,7 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     deanonymize.set_defaults(handler=_handle_deanonymize)
 
     readiness = subparsers.add_parser("readiness", help="Show backend readiness status")
-    readiness.add_argument("--backend", choices=["classic", "transformer"], required=False)
+    readiness.add_argument("--backend", choices=["transformer"], required=False)
     readiness.set_defaults(handler=_handle_readiness)
 
     return parser

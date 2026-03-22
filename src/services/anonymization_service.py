@@ -7,7 +7,6 @@ from src.adapters.documents.txt_adapter import TxtDocumentAdapter
 from src.adapters.mappings.canonical_mapping_adapter import CanonicalMappingAdapter
 from src.config.settings import MAPPINGS_DIR, OUTPUTS_DIR, ensure_runtime_dirs
 from src.engines.base import EngineInitConfig, EngineWrapper
-from src.engines.classic_wrapper import ClassicWrapper
 from src.engines.transformer_wrapper import TransformerWrapper
 from src.models.canonical_result import CanonicalAnonymizationResult
 from src.models.mapping_artifact import MappingArtifact, MappingEntry, MappingOrigin
@@ -31,7 +30,6 @@ class AnonymizationService:
     ) -> None:
         using_default_wrappers = wrappers is None
         self._wrappers = wrappers or {
-            "classic": ClassicWrapper(),
             "transformer": TransformerWrapper(),
         }
         self._document_adapter = document_adapter or TxtDocumentAdapter()

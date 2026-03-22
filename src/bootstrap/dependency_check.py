@@ -5,7 +5,7 @@ import socket
 from dataclasses import dataclass
 
 
-ALL_BACKENDS = ("classic", "transformer")
+ALL_BACKENDS = ("transformer",)
 
 
 @dataclass(frozen=True)
@@ -80,13 +80,11 @@ def check_ollama_endpoint(
 
 def run_dependency_checks() -> list[DependencyCheckResult]:
     checks = [
-        check_python_module("transformers", required=True, backends=ALL_BACKENDS),
-        check_python_module("torch", required=True, backends=ALL_BACKENDS),
+        check_python_module("transformers", required=True, backends=("transformer",)),
+        check_python_module("torch", required=True, backends=("transformer",)),
         check_python_module("rapidfuzz", required=True, backends=("transformer",)),
         check_python_module("unidecode", required=True, backends=("transformer",)),
         check_python_module("gliner", required=True, backends=("transformer",)),
-        check_python_module("requests", required=False, backends=("classic",)),
-        check_cpu_only_compatibility(backends=ALL_BACKENDS),
-        check_ollama_endpoint(),
+        check_cpu_only_compatibility(backends=("transformer",)),
     ]
     return checks
