@@ -6,6 +6,8 @@ from src.adapters.persistence.case_repository import CaseRepository
 from src.adapters.persistence.database import MetadataDatabase
 from src.adapters.persistence.document_repository import DocumentRepository
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
 
 def test_persistence_repositories_store_and_fetch_records(tmp_path: Path) -> None:
     database = MetadataDatabase(tmp_path / "metadata.sqlite3")
@@ -30,11 +32,11 @@ def test_persistence_repositories_store_and_fetch_records(tmp_path: Path) -> Non
 
 def test_persistence_modules_stay_data_focused() -> None:
     repo_files = [
-        Path("src/adapters/persistence/case_repository.py"),
-        Path("src/adapters/persistence/document_repository.py"),
-        Path("src/adapters/persistence/mapping_revision_repository.py"),
-        Path("src/adapters/persistence/job_repository.py"),
-        Path("src/adapters/persistence/artifact_repository.py"),
+        REPO_ROOT / "src/adapters/persistence/case_repository.py",
+        REPO_ROOT / "src/adapters/persistence/document_repository.py",
+        REPO_ROOT / "src/adapters/persistence/mapping_revision_repository.py",
+        REPO_ROOT / "src/adapters/persistence/job_repository.py",
+        REPO_ROOT / "src/adapters/persistence/artifact_repository.py",
     ]
 
     for path in repo_files:
