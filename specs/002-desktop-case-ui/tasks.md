@@ -144,25 +144,25 @@
 
 ### Persistence
 
-- [ ] T056 [US2] Implement last-opened and case-history ordering queries in `src/adapters/persistence/case_repository.py`
-- [ ] T057 [P] [US2] Implement artifact freshness and missing-file lookup queries in `src/adapters/persistence/artifact_repository.py`
-- [ ] T058 [P] [US2] Persist preview snippets and source fingerprints in `src/adapters/persistence/document_repository.py`
-- [ ] T059 [US2] Implement internal soft-delete persistence with no user-facing recovery flow in MVP in `src/adapters/persistence/case_repository.py`
+- [X] T056 [US2] Implement last-opened and case-history ordering queries in `src/adapters/persistence/case_repository.py`
+- [X] T057 [P] [US2] Implement artifact freshness and missing-file lookup queries in `src/adapters/persistence/artifact_repository.py`
+- [X] T058 [P] [US2] Persist preview snippets and source fingerprints in `src/adapters/persistence/document_repository.py`
+- [X] T059 [US2] Implement internal soft-delete persistence with no user-facing recovery flow in MVP in `src/adapters/persistence/case_repository.py`
 
 ### Service/Application
 
-- [ ] T060 [US2] Implement case history and reopened-workspace aggregation in `src/services/case_workspace_service.py`
-- [ ] T061 [US2] Implement case-level status summary derivation in `src/services/case_workspace_service.py`
-- [ ] T062 [US2] Surface missing-artifact and stale-artifact states through view models in `src/services/case_workspace_service.py` and `src/app/ui_contracts/case_workspace_view_models.py`
-- [ ] T063 [US2] Implement `delete_case` orchestration and post-delete history refresh in `src/services/case_workspace_service.py`
+- [X] T060 [US2] Implement case history and reopened-workspace aggregation in `src/services/case_workspace_service.py`
+- [X] T061 [US2] Implement case-level status summary derivation in `src/services/case_workspace_service.py`
+- [X] T062 [US2] Surface missing-artifact and stale-artifact states through view models in `src/services/case_workspace_service.py` and `src/app/ui_contracts/case_workspace_view_models.py`
+- [X] T063 [US2] Implement `delete_case` orchestration and post-delete history refresh in `src/services/case_workspace_service.py`
 
 ### UI (Desktop)
 
-- [ ] T064 [US2] Build persistent case history panel behavior in `src/app/desktop/widgets/case_history_panel.py`
-- [ ] T065 [P] [US2] Build case file/output inspection tables in `src/app/desktop/widgets/case_workspace_panel.py`
-- [ ] T066 [P] [US2] Show snippets, statuses, and stale/missing badges in `src/app/desktop/widgets/result_preview_panel.py`
-- [ ] T067 [US2] Build delete confirmation UI in `src/app/desktop/widgets/delete_case_dialog.py`
-- [ ] T068 [US2] Wire reopen-case and delete-case flows through the presenter in `src/app/desktop/presenters/workspace_presenter.py` and `src/app/desktop/window.py`
+- [X] T064 [US2] Build persistent case history panel behavior in `src/app/desktop/widgets/case_history_panel.py`
+- [X] T065 [P] [US2] Build case file/output inspection tables in `src/app/desktop/widgets/case_workspace_panel.py`
+- [X] T066 [P] [US2] Show snippets, statuses, and stale/missing badges in `src/app/desktop/widgets/result_preview_panel.py`
+- [X] T067 [US2] Build delete confirmation UI in `src/app/desktop/widgets/delete_case_dialog.py`
+- [X] T068 [US2] Wire reopen-case and delete-case flows through the presenter in `src/app/desktop/presenters/workspace_presenter.py` and `src/app/desktop/window.py`
 
 ### Packaging
 
@@ -170,10 +170,10 @@
 
 ### Tests
 
-- [ ] T070 [P] [US2] Add persistence integrity tests for case reopen and artifact references in `tests/unit/persistence/test_case_reopen_integrity.py`
-- [ ] T071 [P] [US2] Add integration tests for reopen-after-restart behavior in `tests/integration/test_case_reopen_history.py`
-- [ ] T072 [P] [US2] Add UI tests for reopening a case from history in `tests/ui/test_case_history_reopen.py`
-- [ ] T073 [P] [US2] Add UI and integration tests for delete confirmation and post-delete behavior in `tests/ui/test_case_delete_flow.py` and `tests/integration/test_case_delete_behavior.py`
+- [X] T070 [P] [US2] Add persistence integrity tests for case reopen and artifact references in `tests/unit/persistence/test_case_reopen_integrity.py`
+- [X] T071 [P] [US2] Add integration tests for reopen-after-restart behavior in `tests/integration/test_case_reopen_history.py`
+- [X] T072 [P] [US2] Add UI tests for reopening a case from history in `tests/ui/test_case_history_reopen.py`
+- [X] T073 [P] [US2] Add UI and integration tests for delete confirmation and post-delete behavior in `tests/ui/test_case_delete_flow.py` and `tests/integration/test_case_delete_behavior.py`
 
 **Checkpoint**: User Stories 1 and 2 are independently testable, and case history continuity and deletion are working.
 

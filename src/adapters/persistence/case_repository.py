@@ -58,7 +58,7 @@ class CaseRepository:
     def get(self, case_id: str) -> CaseRecord | None:
         with self._database.connect() as connection:
             row = connection.execute(
-                "SELECT * FROM cases WHERE case_id = ?",
+                "SELECT * FROM cases WHERE case_id = ? AND deleted_at IS NULL",
                 (case_id,),
             ).fetchone()
         return self._from_row(row) if row else None
@@ -78,7 +78,7 @@ class CaseRepository:
         now = _utc_now()
         with self._database.connect() as connection:
             connection.execute(
-                "UPDATE cases SET last_opened_at = ?, updated_at = ? WHERE case_id = ?",
+                "UPDATE cases SET last_opened_at = ?, updated_at = ? WHERE case_id = ? AND deleted_at IS NULL",
                 (now, now, case_id),
             )
             connection.commit()
@@ -100,6 +100,25 @@ class CaseRepository:
                 WHERE case_id = ?
                 """,
                 (status_summary, _utc_now(), case_id),
+            )
+            if owns_connection:
+                db_connection.commit()
+        finally:
+            if owns_connection:
+                db_connection.close()
+
+    def soft_delete(self, case_id: str, *, connection: sqlite3.Connection | None = None) -> None:
+        owns_connection = connection is None
+        db_connection = connection or self._database.connect()
+        now = _utc_now()
+        try:
+            db_connection.execute(
+                """
+                UPDATE cases
+                SET deleted_at = ?, updated_at = ?
+                WHERE case_id = ? AND deleted_at IS NULL
+                """,
+                (now, now, case_id),
             )
             if owns_connection:
                 db_connection.commit()

@@ -13,7 +13,7 @@ class CaseWorkspacePanel:
         self.progress_messages: tuple[str, ...] = ()
         self._run_callback = None
 
-    def set_workspace(self, workspace: CaseWorkspaceViewModel) -> None:
+    def set_workspace(self, workspace: CaseWorkspaceViewModel | None) -> None:
         self.workspace = workspace
 
     def set_selected_paths(self, paths: list[Path]) -> None:

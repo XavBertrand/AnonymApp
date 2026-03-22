@@ -73,3 +73,27 @@ class JobRepository:
                 (case_id,),
             ).fetchall()
         return [self._from_row(row) for row in rows]
+
+    def has_running_job(self, case_id: str) -> bool:
+        with self._database.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT 1
+                FROM jobs
+                WHERE case_id = ? AND job_status = 'running'
+                LIMIT 1
+                """,
+                (case_id,),
+            ).fetchone()
+        return row is not None
+
+    def running_case_ids(self) -> set[str]:
+        with self._database.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT DISTINCT case_id
+                FROM jobs
+                WHERE job_status = 'running'
+                """
+            ).fetchall()
+        return {str(row["case_id"]) for row in rows}

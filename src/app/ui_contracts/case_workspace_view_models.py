@@ -16,6 +16,8 @@ class CaseListItemViewModel:
     display_name: str
     status_summary: str
     last_opened_at: str | None
+    delete_available: bool = True
+    delete_unavailable_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -24,7 +26,9 @@ class DocumentItemViewModel:
     source_filename: str
     status: str
     preview_snippet: str
+    source_display_path: str | None = None
     latest_output_path: str | None = None
+    latest_output_status: str | None = None
     error_summary: str | None = None
 
 
@@ -35,6 +39,7 @@ class ArtifactItemViewModel:
     file_path: str
     status: str
     mapping_revision: int | None
+    preview_snippet: str = ""
 
 
 @dataclass(frozen=True)
@@ -43,6 +48,8 @@ class CaseWorkspaceViewModel:
     display_name: str
     status_summary: str
     active_mapping_revision: int | None
+    delete_available: bool = True
+    delete_unavailable_reason: str | None = None
     documents: tuple[DocumentItemViewModel, ...] = ()
     artifacts: tuple[ArtifactItemViewModel, ...] = ()
 

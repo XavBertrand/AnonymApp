@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from pathlib import Path
 import sqlite3
 
 from src.adapters.persistence.database import MetadataDatabase
@@ -47,3 +48,10 @@ class ArtifactRepository:
                 (case_id,),
             ).fetchall()
         return [self._from_row(row) for row in rows]
+
+    def list_missing_ids(self, case_id: str) -> set[str]:
+        return {
+            record.artifact_id
+            for record in self.list_by_case(case_id)
+            if not Path(record.file_path).exists()
+        }

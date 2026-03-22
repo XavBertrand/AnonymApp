@@ -33,7 +33,13 @@ from src.services.readiness_service import ReadinessService
 from src.services.stale_state_service import StaleStateService
 
 
+class CaseDeletionBlockedError(RuntimeError):
+    pass
+
+
 class CaseWorkspaceService:
+    DELETE_WHILE_RUNNING_MESSAGE = "Case deletion is unavailable while processing is in progress."
+
     def __init__(
         self,
         *,
@@ -91,6 +97,25 @@ class CaseWorkspaceService:
             readiness_service=self._readiness_service,
         )
 
+    def _delete_availability(self, case_id: str, *, running_case_ids: set[str] | None = None) -> tuple[bool, str | None]:
+        active_running_case_ids = running_case_ids if running_case_ids is not None else self._job_repository.running_case_ids()
+        if case_id in active_running_case_ids:
+            return False, self.DELETE_WHILE_RUNNING_MESSAGE
+        return True, None
+
+    def _build_workspace_load(self, preferred_case_id: str | None = None) -> WorkspaceLoadViewModel:
+        cases = self._case_repository.list_active()
+        running_case_ids = self._job_repository.running_case_ids()
+        selected_case_id = preferred_case_id
+        if selected_case_id is None and cases:
+            selected_case_id = cases[0].case_id
+        selected = self._to_workspace(selected_case_id, running_case_ids=running_case_ids) if selected_case_id is not None else None
+        return WorkspaceLoadViewModel(
+            readiness=self._readiness_summary(),
+            cases=tuple(self._to_case_list_item(item, running_case_ids=running_case_ids) for item in cases),
+            selected_case=selected,
+        )
+
     def _readiness_summary(self) -> ReadinessSummaryViewModel:
         report = self._readiness_service.get_readiness_report()
         unavailable = [item.engine_id for item in report if item.availability_status == "unavailable"]
@@ -106,56 +131,92 @@ class CaseWorkspaceService:
             details=tuple(item.engine_id for item in report),
         )
 
-    def _to_case_list_item(self, record) -> CaseListItemViewModel:
+    def _to_case_list_item(self, record, *, running_case_ids: set[str] | None = None) -> CaseListItemViewModel:
+        delete_available, delete_unavailable_reason = self._delete_availability(
+            record.case_id,
+            running_case_ids=running_case_ids,
+        )
         return CaseListItemViewModel(
             case_id=record.case_id,
             display_name=record.display_name,
             status_summary=record.status_summary,
             last_opened_at=record.last_opened_at,
+            delete_available=delete_available,
+            delete_unavailable_reason=delete_unavailable_reason,
         )
 
-    def _to_workspace(self, case_id: str) -> CaseWorkspaceViewModel:
+    def _derive_case_status(
+        self,
+        *,
+        stored_status: str,
+        documents: tuple[DocumentItemViewModel, ...],
+        artifacts: tuple[ArtifactItemViewModel, ...],
+    ) -> str:
+        if self._readiness_summary().state == "blocked":
+            return "blocked"
+        if any(item.status == "stale" for item in artifacts):
+            return "stale"
+        if any(item.status == "missing" for item in artifacts):
+            return "partial"
+        if any(item.status == "failed" for item in documents):
+            return "partial"
+        if stored_status in {"partial", "failed", "error", "blocked", "stale"}:
+            return stored_status
+        return "ready"
+
+    def _to_workspace(self, case_id: str, *, running_case_ids: set[str] | None = None) -> CaseWorkspaceViewModel:
         case_record = self._case_repository.get(case_id)
         if case_record is None:
             raise ValueError(f"Unknown case '{case_id}'")
         documents = self._document_repository.list_by_case(case_id)
         artifacts = self._artifact_repository.list_by_case(case_id)
+        missing_artifact_ids = self._artifact_repository.list_missing_ids(case_id)
+        artifact_items = tuple(
+            ArtifactItemViewModel(
+                artifact_id=item.artifact_id,
+                display_name=item.display_name,
+                file_path=item.file_path,
+                status="missing" if item.artifact_id in missing_artifact_ids else item.artifact_status,
+                mapping_revision=item.mapping_revision_used,
+                preview_snippet=item.preview_snippet,
+            )
+            for item in artifacts
+        )
+        artifact_lookup = {item.artifact_id: item for item in artifact_items}
+        document_items = tuple(
+            DocumentItemViewModel(
+                document_id=item.document_id,
+                source_filename=item.source_filename,
+                status=item.document_status,
+                preview_snippet=item.preview_snippet,
+                source_display_path=item.source_display_path,
+                latest_output_path=artifact_lookup[item.latest_output_artifact_id].file_path if item.latest_output_artifact_id in artifact_lookup else None,
+                latest_output_status=artifact_lookup[item.latest_output_artifact_id].status if item.latest_output_artifact_id in artifact_lookup else None,
+                error_summary=item.last_error_summary,
+            )
+            for item in documents
+        )
+        delete_available, delete_unavailable_reason = self._delete_availability(
+            case_id,
+            running_case_ids=running_case_ids,
+        )
         return CaseWorkspaceViewModel(
             case_id=case_record.case_id,
             display_name=case_record.display_name,
-            status_summary=case_record.status_summary,
+            status_summary=self._derive_case_status(
+                stored_status=case_record.status_summary,
+                documents=document_items,
+                artifacts=artifact_items,
+            ),
             active_mapping_revision=self._mapping_revision_service.latest_revision_number(case_id),
-            documents=tuple(
-                DocumentItemViewModel(
-                    document_id=item.document_id,
-                    source_filename=item.source_filename,
-                    status=item.document_status,
-                    preview_snippet=item.preview_snippet,
-                    latest_output_path=next((artifact.file_path for artifact in artifacts if artifact.artifact_id == item.latest_output_artifact_id), None),
-                    error_summary=item.last_error_summary,
-                )
-                for item in documents
-            ),
-            artifacts=tuple(
-                ArtifactItemViewModel(
-                    artifact_id=item.artifact_id,
-                    display_name=item.display_name,
-                    file_path=item.file_path,
-                    status=item.artifact_status,
-                    mapping_revision=item.mapping_revision_used,
-                )
-                for item in artifacts
-            ),
+            delete_available=delete_available,
+            delete_unavailable_reason=delete_unavailable_reason,
+            documents=document_items,
+            artifacts=artifact_items,
         )
 
     def load_workspace(self) -> WorkspaceLoadViewModel:
-        cases = self._case_repository.list_active()
-        selected = self._to_workspace(cases[0].case_id) if cases else None
-        return WorkspaceLoadViewModel(
-            readiness=self._readiness_summary(),
-            cases=tuple(self._to_case_list_item(item) for item in cases),
-            selected_case=selected,
-        )
+        return self._build_workspace_load()
 
     def create_case(self, display_name: str) -> CaseWorkspaceViewModel:
         record = self._case_repository.create(display_name)
@@ -165,6 +226,17 @@ class CaseWorkspaceService:
     def open_case(self, case_id: str) -> CaseWorkspaceViewModel:
         self._case_repository.set_last_opened(case_id)
         return self._to_workspace(case_id)
+
+    def delete_case(self, case_id: str, *, confirmed: bool) -> WorkspaceLoadViewModel:
+        if not confirmed:
+            raise ValueError("Case deletion requires explicit confirmation")
+        case_record = self._case_repository.get(case_id)
+        if case_record is None:
+            raise ValueError(f"Unknown case '{case_id}'")
+        if self._job_repository.has_running_job(case_id):
+            raise CaseDeletionBlockedError(self.DELETE_WHILE_RUNNING_MESSAGE)
+        self._case_repository.soft_delete(case_id)
+        return self._build_workspace_load()
 
     def run_case_anonymization(self, case_id: str, txt_file_paths: list[Path]) -> BatchRunViewModel:
         case_record = self._case_repository.get(case_id)

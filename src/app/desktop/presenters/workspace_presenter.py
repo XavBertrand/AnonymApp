@@ -19,5 +19,8 @@ class WorkspacePresenter:
     def open_case(self, case_id: str) -> CaseWorkspaceViewModel:
         return self._service.open_case(case_id)
 
+    def delete_case(self, case_id: str, *, confirmed: bool) -> WorkspaceLoadViewModel:
+        return self._service.delete_case(case_id, confirmed=confirmed)
+
     def run_case_anonymization(self, case_id: str, txt_file_paths: list[Path]) -> BatchRunViewModel:
         return self._service.run_case_anonymization(case_id, txt_file_paths)

@@ -13,3 +13,6 @@ class ResultPreviewPanel:
 
     def set_batch_result(self, batch: BatchRunViewModel) -> None:
         self.last_batch = batch
+
+    def missing_artifacts(self) -> tuple[ArtifactItemViewModel, ...]:
+        return tuple(item for item in self.artifacts if item.status == "missing")
