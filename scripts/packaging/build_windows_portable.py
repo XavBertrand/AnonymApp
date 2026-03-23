@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
+import sys
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from src.config.desktop_settings import (
     APP_ROOT_ENV_VAR,
@@ -16,9 +22,19 @@ PORTABLE_DIST_DIRNAME = "a4_desktop_portable"
 PORTABLE_EXECUTABLE_NAME = "A4Desktop.exe"
 PORTABLE_LAUNCHER_NAME = "launch_a4_desktop.bat"
 PORTABLE_SPEC_RELATIVE = Path("scripts/packaging/a4_desktop.spec")
+WINDOWS_BUILD_ENTRYPOINT_RELATIVE = Path("scripts/packaging/build_windows.ps1")
 ICON_CANDIDATES = (
     Path("src/app/desktop/assets/a4_desktop.ico"),
     Path("src/app/desktop/assets/a4_desktop.svg"),
+)
+CONDA_RUNTIME_DLL_NAMES = (
+    "sqlite3.dll",
+    "libcrypto-3-x64.dll",
+    "libssl-3-x64.dll",
+    "ffi-8.dll",
+    "libexpat.dll",
+    "liblzma.dll",
+    "libbz2.dll",
 )
 
 
@@ -73,6 +89,89 @@ def portable_datas(project_root: Path) -> tuple[tuple[str, str], ...]:
     return tuple(datas)
 
 
+def _is_windows_build_host() -> bool:
+    return os.name == "nt"
+
+
+def _unique_paths(paths: list[Path]) -> list[Path]:
+    seen: set[Path] = set()
+    ordered: list[Path] = []
+    for path in paths:
+        resolved = path.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        ordered.append(resolved)
+    return ordered
+
+
+def _conda_prefix_candidates() -> list[Path]:
+    raw_candidates = [
+        os.environ.get("CONDA_PREFIX", ""),
+        sys.base_prefix,
+        sys.prefix,
+        str(Path(sys.executable).resolve().parent.parent),
+    ]
+    prefixes = [Path(candidate).expanduser() for candidate in raw_candidates if candidate]
+    return _unique_paths(prefixes)
+
+
+def _conda_runtime_search_roots() -> list[Path]:
+    roots: list[Path] = []
+    for prefix in _conda_prefix_candidates():
+        roots.extend(
+            [
+                prefix / "Library" / "bin",
+                prefix / "DLLs",
+                prefix / "bin",
+                prefix,
+            ]
+        )
+    return _unique_paths([root for root in roots if root.exists()])
+
+
+def _find_runtime_dll(name: str, roots: list[Path]) -> Path | None:
+    lowered = name.lower()
+    for root in roots:
+        direct = root / name
+        if direct.exists():
+            return direct
+        for candidate in root.iterdir():
+            if candidate.is_file() and candidate.name.lower() == lowered:
+                return candidate
+    return None
+
+
+def portable_runtime_binaries(project_root: Path) -> tuple[tuple[str, str], ...]:
+    _ = project_root
+    if not _is_windows_build_host():
+        return ()
+
+    roots = _conda_runtime_search_roots()
+    binaries: list[tuple[str, str]] = []
+    for dll_name in CONDA_RUNTIME_DLL_NAMES:
+        runtime_dll = _find_runtime_dll(dll_name, roots)
+        if runtime_dll is not None:
+            binaries.append((str(runtime_dll), "."))
+    return tuple(binaries)
+
+
+def portable_runtime_binaries_report(project_root: Path) -> tuple[str, ...]:
+    _ = project_root
+    if not _is_windows_build_host():
+        return ("Conda runtime DLL detection is skipped outside Windows.",)
+
+    roots = _conda_runtime_search_roots()
+    report: list[str] = []
+    for dll_name in CONDA_RUNTIME_DLL_NAMES:
+        runtime_dll = _find_runtime_dll(dll_name, roots)
+        if runtime_dll is not None:
+            report.append(f"{dll_name} <= {runtime_dll}")
+        else:
+            report.append(f"{dll_name} <= missing")
+    return tuple(report)
+
+
 def portable_runtime_env(
     *,
     portable_root_token: str = "%PORTABLE_ROOT%",
@@ -107,4 +206,4 @@ def launcher_script_content(project_root: Path) -> str:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    print(build_portable_distribution(Path(__file__).resolve().parents[2]))
+    print(build_portable_distribution(REPO_ROOT))

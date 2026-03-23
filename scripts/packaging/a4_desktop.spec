@@ -7,19 +7,21 @@ from pathlib import Path
 from scripts.packaging.build_windows_portable import (
     PORTABLE_EXECUTABLE_NAME,
     portable_build_plan,
+    portable_runtime_binaries,
     portable_datas,
 )
 
 project_root = Path.cwd()
 plan = portable_build_plan(project_root)
 datas = list(portable_datas(project_root))
+binaries = list(portable_runtime_binaries(project_root))
 icon = str(plan.icon_source) if plan.icon_source is not None and plan.icon_source.suffix.lower() == ".ico" else None
 
 
 a = Analysis(
     [str(project_root / "src/app/desktop/main.py")],
     pathex=[str(project_root)],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=[],
     hookspath=[],
