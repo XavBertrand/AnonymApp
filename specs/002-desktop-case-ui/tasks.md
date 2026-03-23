@@ -187,27 +187,27 @@
 
 ### Persistence
 
-- [ ] T074 [US3] Implement review decision persistence in `src/adapters/persistence/review_decision_repository.py`
-- [ ] T075 [P] [US3] Implement mapping revision write/read methods for review changes in `src/adapters/persistence/mapping_revision_repository.py`
-- [ ] T076 [P] [US3] Implement impacted-artifact linkage queries in `src/adapters/persistence/artifact_repository.py`
+- [X] T074 [US3] Implement review decision persistence in `src/adapters/persistence/review_decision_repository.py`
+- [X] T075 [P] [US3] Implement mapping revision write/read methods for review changes in `src/adapters/persistence/mapping_revision_repository.py`
+- [X] T076 [P] [US3] Implement impacted-artifact linkage queries in `src/adapters/persistence/artifact_repository.py`
 
 ### Service/Application
 
-- [ ] T077 [US3] Implement substitution review loading in `src/services/case_workspace_service.py`
-- [ ] T078 [US3] Implement substitution removal workflow in `src/services/case_workspace_service.py`
-- [ ] T079 [US3] Implement mapping revision creation for removals in `src/services/mapping_revision_service.py`
-- [ ] T080 [US3] Implement deterministic stale-state propagation after mapping changes in `src/services/stale_state_service.py`
-- [ ] T081 [US3] Implement explicit user-triggered stale-output regeneration workflow in `src/services/case_workspace_service.py`
-- [ ] T082 [US3] Implement reopened-review editability eligibility checks in `src/services/case_workspace_service.py`
-- [ ] T083 [US3] Regenerate current preview from the new MappingRevision in `src/services/case_workspace_service.py`
-- [ ] T084 [US3] Ensure no transient or UI-local mapping state can diverge from MappingRevision in `src/services/case_workspace_service.py` and `src/app/ui_contracts/case_workspace_view_models.py`
+- [X] T077 [US3] Implement substitution review loading in `src/services/case_workspace_service.py`
+- [X] T078 [US3] Implement substitution removal workflow in `src/services/case_workspace_service.py`
+- [X] T079 [US3] Implement mapping revision creation for removals in `src/services/mapping_revision_service.py`
+- [X] T080 [US3] Implement deterministic stale-state propagation after mapping changes in `src/services/stale_state_service.py`
+- [X] T081 [US3] Implement explicit user-triggered stale-output regeneration workflow in `src/services/case_workspace_service.py`
+- [X] T082 [US3] Implement reopened-review editability eligibility checks in `src/services/case_workspace_service.py`
+- [X] T083 [US3] Regenerate current preview from the new MappingRevision in `src/services/case_workspace_service.py`
+- [X] T084 [US3] Ensure no transient or UI-local mapping state can diverge from MappingRevision in `src/services/case_workspace_service.py` and `src/app/ui_contracts/case_workspace_view_models.py`
 
 ### UI (Desktop)
 
-- [ ] T085 [US3] Build substitution review panel UI in `src/app/desktop/widgets/mapping_review_panel.py`
-- [ ] T086 [P] [US3] Add impacted-output details view and stale indicators in `src/app/desktop/widgets/result_preview_panel.py`
-- [ ] T087 [US3] Add explicit stale-output regeneration action with eligibility state in `src/app/desktop/widgets/result_preview_panel.py`
-- [ ] T088 [US3] Wire review, removal, and regeneration actions through the presenter only in `src/app/desktop/presenters/workspace_presenter.py`
+- [X] T085 [US3] Build substitution review panel UI in `src/app/desktop/widgets/mapping_review_panel.py`
+- [X] T086 [P] [US3] Add impacted-output details view and stale indicators in `src/app/desktop/widgets/result_preview_panel.py`
+- [X] T087 [US3] Add explicit stale-output regeneration action with eligibility state in `src/app/desktop/widgets/result_preview_panel.py`
+- [X] T088 [US3] Wire review, removal, and regeneration actions through the presenter only in `src/app/desktop/presenters/workspace_presenter.py`
 
 ### Packaging
 
@@ -215,13 +215,13 @@
 
 ### Tests
 
-- [ ] T090 [P] [US3] Add unit tests for mapping revision increments and earliest-wins conflict behavior in `tests/unit/services/test_mapping_revision_service.py`
-- [ ] T091 [P] [US3] Add unit tests for stale-state propagation correctness in `tests/unit/services/test_stale_state_service.py`
-- [ ] T092 [P] [US3] Add integration tests for substitution removal and regeneration in `tests/integration/test_case_review_regeneration.py`
-- [ ] T093 [P] [US3] Add integration tests for stale impacted outputs after removal in `tests/integration/test_case_stale_outputs.py`
-- [ ] T094 [P] [US3] Add integration tests for explicit stale-output regeneration flow in `tests/integration/test_case_stale_regeneration.py`
-- [ ] T095 [P] [US3] Add integration tests for unsafe reopen and editability gating in `tests/integration/test_case_review_editability.py`
-- [ ] T096 [P] [US3] Add UI tests for mapping review, removal, and regeneration flow in `tests/ui/test_mapping_review_panel.py`
+- [X] T090 [P] [US3] Add unit tests for mapping revision increments and earliest-wins conflict behavior in `tests/unit/services/test_mapping_revision_service.py`
+- [X] T091 [P] [US3] Add unit tests for stale-state propagation correctness in `tests/unit/services/test_stale_state_service.py`
+- [X] T092 [P] [US3] Add integration tests for substitution removal and regeneration in `tests/integration/test_case_review_regeneration.py`
+- [X] T093 [P] [US3] Add integration tests for stale impacted outputs after removal in `tests/integration/test_case_stale_outputs.py`
+- [X] T094 [P] [US3] Add integration tests for explicit stale-output regeneration flow in `tests/integration/test_case_stale_regeneration.py`
+- [X] T095 [P] [US3] Add integration tests for unsafe reopen and editability gating in `tests/integration/test_case_review_editability.py`
+- [X] T096 [P] [US3] Add UI tests for mapping review, removal, and regeneration flow in `tests/ui/test_mapping_review_panel.py`
 
 **Checkpoint**: User Story 3 is independently functional with deterministic mapping revisioning, explicit regeneration, and safe editability gating.
 
@@ -235,21 +235,21 @@
 
 ### Persistence
 
-- [ ] T097 [US4] Implement deanonymization session persistence in `src/adapters/persistence/deanonymization_session_repository.py`
-- [ ] T098 [P] [US4] Implement export artifact persistence for pasted deanonymization in `src/adapters/persistence/artifact_repository.py`
+- [X] T097 [US4] Implement deanonymization session persistence in `src/adapters/persistence/deanonymization_session_repository.py`
+- [X] T098 [P] [US4] Implement export artifact persistence for pasted deanonymization in `src/adapters/persistence/artifact_repository.py`
 
 ### Service/Application
 
-- [ ] T099 [US4] Implement pasted deanonymization orchestration in `src/services/case_workspace_service.py`
-- [ ] T100 [US4] Resolve pasted deanonymization strictly from the active MappingRevision in `src/services/case_workspace_service.py`
-- [ ] T101 [US4] Implement zero-match and partial-match result handling in `src/services/case_workspace_service.py`
-- [ ] T102 [US4] Implement deanonymized export workflow in `src/services/case_workspace_service.py`
+- [X] T099 [US4] Implement pasted deanonymization orchestration in `src/services/case_workspace_service.py`
+- [X] T100 [US4] Resolve pasted deanonymization strictly from the active MappingRevision in `src/services/case_workspace_service.py`
+- [X] T101 [US4] Implement zero-match and partial-match result handling in `src/services/case_workspace_service.py`
+- [X] T102 [US4] Implement deanonymized export workflow in `src/services/case_workspace_service.py`
 
 ### UI (Desktop)
 
-- [ ] T103 [US4] Build pasted-text deanonymization input/output panel in `src/app/desktop/widgets/deanonymization_panel.py`
-- [ ] T104 [P] [US4] Add export action and result-state messaging in `src/app/desktop/widgets/deanonymization_panel.py`
-- [ ] T105 [US4] Wire pasted deanonymization through the presenter and background worker in `src/app/desktop/presenters/workspace_presenter.py` and `src/app/desktop/workers/workspace_worker.py`
+- [X] T103 [US4] Build pasted-text deanonymization input/output panel in `src/app/desktop/widgets/deanonymization_panel.py`
+- [X] T104 [P] [US4] Add export action and result-state messaging in `src/app/desktop/widgets/deanonymization_panel.py`
+- [X] T105 [US4] Wire pasted deanonymization through the presenter and background worker in `src/app/desktop/presenters/workspace_presenter.py` and `src/app/desktop/workers/workspace_worker.py`
 
 ### Packaging
 
@@ -257,11 +257,11 @@
 
 ### Tests
 
-- [ ] T107 [P] [US4] Add unit tests for deanonymization session handling in `tests/unit/services/test_case_workspace_service_deanonymization.py`
-- [ ] T108 [P] [US4] Add integration tests for pasted deanonymization with known and unknown matches in `tests/integration/test_pasted_deanonymization.py`
-- [ ] T109 [P] [US4] Add integration tests for zero-match unchanged output in `tests/integration/test_pasted_deanonymization_zero_match.py`
-- [ ] T110 [P] [US4] Add cross-story round-trip anonymize/deanonymize coherence tests in `tests/integration/test_case_round_trip_coherence.py`
-- [ ] T111 [P] [US4] Add UI tests for pasted deanonymization flow in `tests/ui/test_deanonymization_panel.py`
+- [X] T107 [P] [US4] Add unit tests for deanonymization session handling in `tests/unit/services/test_case_workspace_service_deanonymization.py`
+- [X] T108 [P] [US4] Add integration tests for pasted deanonymization with known and unknown matches in `tests/integration/test_pasted_deanonymization.py`
+- [X] T109 [P] [US4] Add integration tests for zero-match unchanged output in `tests/integration/test_pasted_deanonymization_zero_match.py`
+- [X] T110 [P] [US4] Add cross-story round-trip anonymize/deanonymize coherence tests in `tests/integration/test_case_round_trip_coherence.py`
+- [X] T111 [P] [US4] Add UI tests for pasted deanonymization flow in `tests/ui/test_deanonymization_panel.py`
 
 **Checkpoint**: User Story 4 is independently functional and uses the current case mapping without UI-side business logic.
 

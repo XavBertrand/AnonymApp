@@ -15,6 +15,7 @@ from src.models.mapping_artifact import MappingArtifact, MappingEntry, MappingOr
 from src.services.anonymization_service import AnonymizationService
 from src.services.anonymization_service import AnonymizationJobResult
 from src.services.case_workspace_service import CaseWorkspaceService
+from src.services.deanonymization_service import DeanonymizationTextResult
 from src.services.readiness_service import ReadinessService
 
 
@@ -146,12 +147,25 @@ class FakeAnonymizationService:
         return AnonymizationJobResult(result=result, output_path=resolved_output, mapping_path=resolved_mapping)
 
 
+class FakeDeanonymizationService:
+    def run_text(self, *, input_text: str, mapping_artifact: MappingArtifact) -> DeanonymizationTextResult:
+        restored = input_text
+        for entry in sorted(mapping_artifact.entries, key=lambda item: len(item.placeholder), reverse=True):
+            if entry.placeholder:
+                restored = restored.replace(entry.placeholder, entry.original_value)
+        return DeanonymizationTextResult(
+            deanonymized_text=restored,
+            engine_id=mapping_artifact.origin.engine_id,
+        )
+
+
 def build_workspace_service(
     tmp_path: Path,
     *,
     plans_by_filename: dict[str, list[MappingPlanEntry]] | None = None,
     failing_filenames: set[str] | None = None,
     anonymization_service=None,
+    deanonymization_service=None,
     document_registry: DocumentAdapterRegistry | None = None,
     **service_overrides,
 ) -> CaseWorkspaceService:
@@ -164,11 +178,13 @@ def build_workspace_service(
         plans_by_filename=plans_by_filename,
         failing_filenames=failing_filenames,
     )
+    deanonymization_service = deanonymization_service or FakeDeanonymizationService()
     return CaseWorkspaceService(
         database=database,
         artifact_store=artifact_store,
         mapping_adapter=mapping_adapter,
         anonymization_service=anonymization_service,
+        deanonymization_service=deanonymization_service,
         readiness_service=FakeReadinessService(),
         document_registry=document_registry,
         **service_overrides,

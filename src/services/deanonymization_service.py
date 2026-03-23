@@ -23,6 +23,12 @@ class DeanonymizationJobResult:
     mapping_path: Path
 
 
+@dataclass(frozen=True)
+class DeanonymizationTextResult:
+    deanonymized_text: str
+    engine_id: str
+
+
 class DeanonymizationService:
     def __init__(
         self,
@@ -98,6 +104,32 @@ class DeanonymizationService:
             output_path=resolved_output,
             engine_id=backend,
             mapping_path=mapping_path,
+        )
+
+    def run_text(
+        self,
+        *,
+        input_text: str,
+        mapping_artifact,
+    ) -> DeanonymizationTextResult:
+        self._mapping_adapter.validate_compatibility(
+            mapping_artifact,
+            supported_engine_ids=set(self._wrappers.keys()),
+        )
+
+        backend = mapping_artifact.origin.engine_id
+        wrapper = self._resolve_wrapper(backend)
+        if self._readiness_service is not None:
+            self._readiness_service.assert_backend_usable(backend, operation="deanonymization")
+
+        descriptor = wrapper.initialize(EngineInitConfig(engine_id=backend, options={}))
+        self._mapping_adapter.validate_origin_backend_availability(
+            engine_id=backend,
+            availability_status=descriptor.availability_status,
+        )
+        return DeanonymizationTextResult(
+            deanonymized_text=wrapper.deanonymize(input_text, mapping_artifact),
+            engine_id=backend,
         )
 
 

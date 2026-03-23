@@ -25,11 +25,11 @@ class ArtifactRepository:
                 INSERT INTO artifacts (
                     artifact_id, case_id, document_id, artifact_type, display_name, file_path,
                     created_at, mapping_revision_used, artifact_status, stale_reason,
-                    supersedes_artifact_id, preview_snippet, job_id, mapping_path
+                    supersedes_artifact_id, preview_snippet, job_id, mapping_path, content_sha256
                 ) VALUES (
                     :artifact_id, :case_id, :document_id, :artifact_type, :display_name, :file_path,
                     :created_at, :mapping_revision_used, :artifact_status, :stale_reason,
-                    :supersedes_artifact_id, :preview_snippet, :job_id, :mapping_path
+                    :supersedes_artifact_id, :preview_snippet, :job_id, :mapping_path, :content_sha256
                 )
                 """,
                 asdict(record),
@@ -48,6 +48,60 @@ class ArtifactRepository:
                 (case_id,),
             ).fetchall()
         return [self._from_row(row) for row in rows]
+
+    def get(self, artifact_id: str) -> ArtifactRecord | None:
+        with self._database.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM artifacts WHERE artifact_id = ?",
+                (artifact_id,),
+            ).fetchone()
+        return self._from_row(row) if row else None
+
+    def list_by_document(self, document_id: str) -> list[ArtifactRecord]:
+        with self._database.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM artifacts WHERE document_id = ? ORDER BY created_at DESC",
+                (document_id,),
+            ).fetchall()
+        return [self._from_row(row) for row in rows]
+
+    def list_linked_for_review(self, case_id: str) -> list[ArtifactRecord]:
+        with self._database.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM artifacts
+                WHERE case_id = ? AND document_id IS NOT NULL AND mapping_path IS NOT NULL
+                ORDER BY created_at ASC, artifact_id ASC
+                """,
+                (case_id,),
+            ).fetchall()
+        return [self._from_row(row) for row in rows]
+
+    def update_state(
+        self,
+        *,
+        artifact_id: str,
+        artifact_status: str,
+        stale_reason: str | None,
+        supersedes_artifact_id: str | None,
+        connection: sqlite3.Connection | None = None,
+    ) -> None:
+        owns_connection = connection is None
+        db_connection = connection or self._database.connect()
+        try:
+            db_connection.execute(
+                """
+                UPDATE artifacts
+                SET artifact_status = ?, stale_reason = ?, supersedes_artifact_id = ?
+                WHERE artifact_id = ?
+                """,
+                (artifact_status, stale_reason, supersedes_artifact_id, artifact_id),
+            )
+            if owns_connection:
+                db_connection.commit()
+        finally:
+            if owns_connection:
+                db_connection.close()
 
     def list_missing_ids(self, case_id: str) -> set[str]:
         return {

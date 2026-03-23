@@ -28,6 +28,7 @@ class ArtifactStore:
             "imports": root / "imports",
             "outputs": root / "outputs",
             "mappings": root / "mappings",
+            "sessions": root / "sessions",
         }
         for path in paths.values():
             path.mkdir(parents=True, exist_ok=True)
@@ -49,8 +50,35 @@ class ArtifactStore:
         fingerprint = self.fingerprint(source_path)[:8]
         return dirs["mappings"] / f"{source_path.stem}-{fingerprint}-{job_id[:8]}.mapping.json"
 
+    def regenerated_output_path(self, case_id: str, display_name: str, source_filename: str, action_id: str) -> Path:
+        dirs = self.ensure_case_dirs(case_id, display_name)
+        stem = Path(source_filename).stem
+        return dirs["outputs"] / f"{stem}-review-{action_id[:8]}.anon.txt"
+
+    def regenerated_mapping_path(self, case_id: str, display_name: str, source_filename: str, action_id: str) -> Path:
+        dirs = self.ensure_case_dirs(case_id, display_name)
+        stem = Path(source_filename).stem
+        return dirs["mappings"] / f"{stem}-review-{action_id[:8]}.mapping.json"
+
+    def deanonymization_input_path(self, case_id: str, display_name: str, session_id: str) -> Path:
+        dirs = self.ensure_case_dirs(case_id, display_name)
+        return dirs["sessions"] / f"pasted-{session_id[:8]}.input.txt"
+
+    def deanonymization_result_path(self, case_id: str, display_name: str, session_id: str) -> Path:
+        dirs = self.ensure_case_dirs(case_id, display_name)
+        return dirs["sessions"] / f"pasted-{session_id[:8]}.result.txt"
+
+    def deanonymized_export_path(self, case_id: str, display_name: str, session_id: str) -> Path:
+        export_root = self._exports_root / f"{_slugify(display_name)}-{case_id[:8]}"
+        export_root.mkdir(parents=True, exist_ok=True)
+        return export_root / f"deanonymized-{session_id[:8]}.txt"
+
     @staticmethod
     def fingerprint(source_path: Path) -> str:
         digest = hashlib.sha256()
         digest.update(source_path.read_bytes())
         return digest.hexdigest()
+
+    @staticmethod
+    def file_sha256(path: Path) -> str:
+        return ArtifactStore.fingerprint(path)

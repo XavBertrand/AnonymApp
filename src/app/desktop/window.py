@@ -6,7 +6,9 @@ from src.app.desktop.presenters.workspace_presenter import WorkspacePresenter
 from src.app.desktop.qt_compat import QMainWindow, dispatch_to_main_thread, ensure_application
 from src.app.desktop.workers.workspace_worker import WorkspaceWorker
 from src.app.desktop.widgets.case_history_panel import CaseHistoryPanel
+from src.app.desktop.widgets.mapping_review_panel import MappingReviewPanel
 from src.app.desktop.widgets.case_workspace_panel import CaseWorkspacePanel
+from src.app.desktop.widgets.deanonymization_panel import DeanonymizationPanel
 from src.app.desktop.widgets.delete_case_dialog import DeleteCaseDialog
 from src.app.desktop.widgets.result_preview_panel import ResultPreviewPanel
 from src.services.case_workspace_service import CaseDeletionBlockedError, CaseWorkspaceService
@@ -26,9 +28,12 @@ class DesktopMainWindow(QMainWindow):
         self.delete_case_dialog = delete_case_dialog or DeleteCaseDialog()
         self.case_history_panel = CaseHistoryPanel()
         self.case_workspace_panel = CaseWorkspacePanel()
+        self.mapping_review_panel = MappingReviewPanel()
+        self.deanonymization_panel = DeanonymizationPanel()
         self.result_preview_panel = ResultPreviewPanel()
         self.current_case_id: str | None = None
         self.pending_batch = None
+        self.pending_deanonymization = None
         self.last_error: str | None = None
         self.setWindowTitle("A4 = Action Avocats Anonym App")
         self.case_history_panel.bind_actions(
@@ -37,16 +42,29 @@ class DesktopMainWindow(QMainWindow):
             delete_case=self.delete_case,
         )
         self.case_workspace_panel.bind_run_action(self.run_case_anonymization)
+        self.mapping_review_panel.bind_actions(
+            load_review=self.load_substitution_review,
+            remove_substitutions=self.remove_substitutions,
+        )
+        self.deanonymization_panel.bind_actions(
+            deanonymize_text=self.deanonymize_pasted_text,
+            export_result=self.export_deanonymized_result,
+        )
+        self.result_preview_panel.bind_regeneration_action(self.regenerate_stale_output)
 
     def _apply_workspace_load(self, model) -> None:
         self.case_history_panel.set_cases(model.cases)
         if model.selected_case is None:
             self.current_case_id = None
             self.case_workspace_panel.set_workspace(None)
+            self.mapping_review_panel.set_review(None)
+            self.deanonymization_panel.set_session(None)
             self.result_preview_panel.set_artifacts(())
             return
         self.current_case_id = model.selected_case.case_id
         self.case_workspace_panel.set_workspace(model.selected_case)
+        self.mapping_review_panel.set_review(None)
+        self.deanonymization_panel.set_session(None)
         self.result_preview_panel.set_artifacts(model.selected_case.artifacts)
 
     def load(self) -> None:
@@ -88,6 +106,7 @@ class DesktopMainWindow(QMainWindow):
         self.last_error = None
         self.case_workspace_panel.set_batch_result(batch)
         self.case_workspace_panel.set_workspace(batch.workspace)
+        self.mapping_review_panel.set_review(None)
         self.result_preview_panel.set_batch_result(batch)
         self.result_preview_panel.set_artifacts(batch.workspace.artifacts)
 
@@ -105,3 +124,69 @@ class DesktopMainWindow(QMainWindow):
             on_success=self._apply_batch_result,
             on_error=self._apply_batch_error,
         )
+
+    def _apply_deanonymization_result(self, session) -> None:
+        self.pending_deanonymization = None
+        self.last_error = None
+        self.deanonymization_panel.set_session(session)
+
+    def _apply_deanonymization_error(self, error: Exception) -> None:
+        self.pending_deanonymization = None
+        self.last_error = str(error)
+
+    def load_substitution_review(self, document_id: str) -> None:
+        if self.current_case_id is None:
+            raise RuntimeError("A case must be selected before loading substitution review")
+        review = self.presenter.load_substitution_review(self.current_case_id, document_id)
+        self.mapping_review_panel.set_review(review)
+
+    def remove_substitutions(self, mapping_entry_ids: tuple[str, ...]) -> None:
+        if self.current_case_id is None:
+            raise RuntimeError("A case must be selected before removing substitutions")
+        review = self.mapping_review_panel.review
+        if review is None:
+            raise RuntimeError("A substitution review must be loaded before removing substitutions")
+        update = self.presenter.remove_substitutions(
+            self.current_case_id,
+            review.document_id,
+            mapping_entry_ids,
+        )
+        self._apply_workspace_load(self.presenter.load_workspace())
+        self.mapping_review_panel.set_review_update(update)
+        self.result_preview_panel.set_artifacts(update.workspace.artifacts)
+
+    def regenerate_stale_output(self, artifact_id: str) -> None:
+        if self.current_case_id is None:
+            raise RuntimeError("A case must be selected before regenerating output")
+        result = self.presenter.regenerate_stale_output(self.current_case_id, artifact_id)
+        self._apply_workspace_load(self.presenter.load_workspace())
+        self.result_preview_panel.set_regeneration_result(result)
+        self.result_preview_panel.set_artifacts(result.workspace.artifacts)
+        if result.review is not None:
+            self.mapping_review_panel.set_review(result.review)
+
+    def deanonymize_pasted_text(self, input_text: str) -> None:
+        if self.current_case_id is None:
+            raise RuntimeError("A case must be selected before deanonymization")
+        self.pending_deanonymization = self.worker.submit(
+            self.presenter.deanonymize_pasted_text,
+            self.current_case_id,
+            input_text,
+            on_success=self._apply_deanonymization_result,
+            on_error=self._apply_deanonymization_error,
+        )
+
+    def export_deanonymized_result(self, destination: Path | None = None) -> None:
+        if self.current_case_id is None:
+            raise RuntimeError("A case must be selected before exporting deanonymized text")
+        session = self.deanonymization_panel.session
+        if session is None:
+            raise RuntimeError("A deanonymization result must be available before export")
+        result = self.presenter.export_deanonymized_result(
+            self.current_case_id,
+            session.session_id,
+            destination,
+        )
+        self.case_workspace_panel.set_workspace(result.workspace)
+        self.result_preview_panel.set_artifacts(result.workspace.artifacts)
+        self.deanonymization_panel.set_export_result(result)

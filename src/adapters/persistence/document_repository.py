@@ -79,6 +79,43 @@ class DocumentRepository:
             ).fetchall()
         return [self._from_row(row) for row in rows]
 
+    def get(self, document_id: str) -> DocumentRecord | None:
+        with self._database.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM documents WHERE document_id = ?",
+                (document_id,),
+            ).fetchone()
+        return self._from_row(row) if row else None
+
+    def update_status(
+        self,
+        *,
+        document_id: str,
+        document_status: str,
+        last_error_summary: str | None,
+        latest_output_artifact_id: str | None,
+        touch_last_processed_at: bool = False,
+        connection: sqlite3.Connection | None = None,
+    ) -> None:
+        owns_connection = connection is None
+        db_connection = connection or self._database.connect()
+        processed_at = _utc_now() if touch_last_processed_at else None
+        try:
+            db_connection.execute(
+                """
+                UPDATE documents
+                SET document_status = ?, last_error_summary = ?, latest_output_artifact_id = ?,
+                    last_processed_at = COALESCE(?, last_processed_at)
+                WHERE document_id = ?
+                """,
+                (document_status, last_error_summary, latest_output_artifact_id, processed_at, document_id),
+            )
+            if owns_connection:
+                db_connection.commit()
+        finally:
+            if owns_connection:
+                db_connection.close()
+
     def update_processing(
         self,
         *,
@@ -88,19 +125,11 @@ class DocumentRepository:
         latest_output_artifact_id: str | None,
         connection: sqlite3.Connection | None = None,
     ) -> None:
-        owns_connection = connection is None
-        db_connection = connection or self._database.connect()
-        try:
-            db_connection.execute(
-                """
-                UPDATE documents
-                SET document_status = ?, last_error_summary = ?, latest_output_artifact_id = ?, last_processed_at = ?
-                WHERE document_id = ?
-                """,
-                (document_status, last_error_summary, latest_output_artifact_id, _utc_now(), document_id),
-            )
-            if owns_connection:
-                db_connection.commit()
-        finally:
-            if owns_connection:
-                db_connection.close()
+        self.update_status(
+            document_id=document_id,
+            document_status=document_status,
+            last_error_summary=last_error_summary,
+            latest_output_artifact_id=latest_output_artifact_id,
+            touch_last_processed_at=True,
+            connection=connection,
+        )

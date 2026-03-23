@@ -13,7 +13,6 @@ from src.adapters.persistence.deanonymization_session_repository import Deanonym
 from src.adapters.persistence.document_repository import DocumentRepository
 from src.adapters.persistence.job_repository import JobRepository
 from src.adapters.persistence.mapping_revision_repository import MappingRevisionRepository
-from src.adapters.persistence.records import ArtifactRecord, JobRecord
 from src.adapters.persistence.review_decision_repository import ReviewDecisionRepository
 from src.app.ui_contracts.case_workspace_view_models import (
     ArtifactItemViewModel,
@@ -21,16 +20,25 @@ from src.app.ui_contracts.case_workspace_view_models import (
     BatchRunViewModel,
     CaseListItemViewModel,
     CaseWorkspaceViewModel,
+    DeanonymizationExportViewModel,
+    DeanonymizationSessionViewModel,
     DocumentItemViewModel,
     ReadinessSummaryViewModel,
+    ReviewUpdateViewModel,
+    StaleArtifactRegenerationViewModel,
+    SubstitutionReviewViewModel,
     WorkspaceLoadViewModel,
 )
 from src.services.anonymization_service import AnonymizationService
 from src.services.case_batch_service import CaseBatchService
 from src.services.case_mapping_policy import CaseMappingPolicy
+from src.services.deanonymization_service import DeanonymizationService
 from src.services.mapping_revision_service import MappingRevisionService
+from src.services.pasted_deanonymization_service import PastedDeanonymizationService
 from src.services.readiness_service import ReadinessService
+from src.services.stale_output_regeneration_service import StaleOutputRegenerationService
 from src.services.stale_state_service import StaleStateService
+from src.services.substitution_review_service import SubstitutionReviewService
 
 
 class CaseDeletionBlockedError(RuntimeError):
@@ -55,10 +63,14 @@ class CaseWorkspaceService:
         document_registry: DocumentAdapterRegistry | None = None,
         mapping_adapter: CanonicalMappingAdapter | None = None,
         anonymization_service: AnonymizationService | None = None,
+        deanonymization_service: DeanonymizationService | None = None,
         readiness_service: ReadinessService | None = None,
         mapping_revision_service: MappingRevisionService | None = None,
         case_mapping_policy: CaseMappingPolicy | None = None,
         stale_state_service: StaleStateService | None = None,
+        substitution_review_service: SubstitutionReviewService | None = None,
+        stale_output_regeneration_service: StaleOutputRegenerationService | None = None,
+        pasted_deanonymization_service: PastedDeanonymizationService | None = None,
     ) -> None:
         self._database = database or MetadataDatabase()
         self._database.bootstrap()
@@ -68,7 +80,9 @@ class CaseWorkspaceService:
         self._mapping_revision_repository = mapping_repo
         self._job_repository = job_repository or JobRepository(self._database)
         self._artifact_repository = artifact_repository or ArtifactRepository(self._database)
-        self._deanonymization_session_repository = deanonymization_session_repository or DeanonymizationSessionRepository(self._database)
+        self._deanonymization_session_repository = deanonymization_session_repository or DeanonymizationSessionRepository(
+            self._database
+        )
         self._review_decision_repository = review_decision_repository or ReviewDecisionRepository(self._database)
         self._artifact_store = artifact_store or ArtifactStore()
         self._document_registry = document_registry or DocumentAdapterRegistry([TxtDocumentAdapter()])
@@ -76,6 +90,11 @@ class CaseWorkspaceService:
         self._readiness_service = readiness_service or ReadinessService()
         self._anonymization_service = anonymization_service or AnonymizationService(
             document_registry=self._document_registry,
+        )
+        self._deanonymization_service = deanonymization_service or DeanonymizationService(
+            document_registry=self._document_registry,
+            mapping_adapter=self._mapping_adapter,
+            readiness_service=self._readiness_service,
         )
         self._case_mapping_policy = case_mapping_policy or CaseMappingPolicy()
         self._mapping_revision_service = mapping_revision_service or MappingRevisionService(
@@ -95,6 +114,39 @@ class CaseWorkspaceService:
             mapping_revision_service=self._mapping_revision_service,
             anonymization_service=self._anonymization_service,
             readiness_service=self._readiness_service,
+        )
+        self._substitution_review_service = substitution_review_service or SubstitutionReviewService(
+            database=self._database,
+            case_repository=self._case_repository,
+            document_repository=self._document_repository,
+            artifact_repository=self._artifact_repository,
+            review_decision_repository=self._review_decision_repository,
+            artifact_store=self._artifact_store,
+            document_registry=self._document_registry,
+            mapping_revision_service=self._mapping_revision_service,
+            stale_state_service=self._stale_state_service,
+            mapping_adapter=self._mapping_adapter,
+        )
+        self._stale_output_regeneration_service = stale_output_regeneration_service or StaleOutputRegenerationService(
+            database=self._database,
+            case_repository=self._case_repository,
+            document_repository=self._document_repository,
+            artifact_repository=self._artifact_repository,
+            artifact_store=self._artifact_store,
+            document_registry=self._document_registry,
+            mapping_revision_service=self._mapping_revision_service,
+            stale_state_service=self._stale_state_service,
+            mapping_adapter=self._mapping_adapter,
+        )
+        self._pasted_deanonymization_service = pasted_deanonymization_service or PastedDeanonymizationService(
+            database=self._database,
+            case_repository=self._case_repository,
+            artifact_repository=self._artifact_repository,
+            deanonymization_session_repository=self._deanonymization_session_repository,
+            artifact_store=self._artifact_store,
+            document_registry=self._document_registry,
+            mapping_revision_service=self._mapping_revision_service,
+            deanonymization_service=self._deanonymization_service,
         )
 
     def _delete_availability(self, case_id: str, *, running_case_ids: set[str] | None = None) -> tuple[bool, str | None]:
@@ -145,6 +197,36 @@ class CaseWorkspaceService:
             delete_unavailable_reason=delete_unavailable_reason,
         )
 
+    def _artifact_regeneration_state(
+        self,
+        *,
+        artifact,
+        displayed_status: str,
+        latest_output_artifact_ids: set[str],
+        latest_revision: int | None,
+    ) -> tuple[bool, str | None]:
+        if not self._stale_state_service.uses_mapping_artifact(artifact):
+            return False, "Seules les sorties anonymisees peuvent etre regenerees."
+        rewrite_base_state = self._stale_state_service.rewrite_base_trust_state(artifact)
+        mapping_state = self._stale_state_service.load_mapping_artifact_state(
+            artifact=artifact,
+            mapping_loader=self._mapping_adapter.load,
+        )
+        removed_entries = self._mapping_revision_service.removed_entries_since(
+            case_id=artifact.case_id,
+            since_revision_number=artifact.mapping_revision_used,
+            target_revision_number=latest_revision,
+        )
+        return self._stale_state_service.regeneration_eligibility(
+            artifact_status=displayed_status,
+            rewrite_base_trusted=rewrite_base_state.trusted,
+            rewrite_base_issue=rewrite_base_state.issue,
+            mapping_issue=mapping_state.issue,
+            removed_entries=removed_entries,
+            mapping_artifact=mapping_state.mapping_artifact,
+            is_latest_for_document=artifact.artifact_id in latest_output_artifact_ids,
+        )
+
     def _derive_case_status(
         self,
         *,
@@ -156,11 +238,13 @@ class CaseWorkspaceService:
             return "blocked"
         if any(item.status == "stale" for item in artifacts):
             return "stale"
+        if any(item.status == "unsafe" for item in artifacts):
+            return "partial"
         if any(item.status == "missing" for item in artifacts):
             return "partial"
         if any(item.status == "failed" for item in documents):
             return "partial"
-        if stored_status in {"partial", "failed", "error", "blocked", "stale"}:
+        if stored_status in {"partial", "failed", "error", "blocked"}:
             return stored_status
         return "ready"
 
@@ -170,19 +254,54 @@ class CaseWorkspaceService:
             raise ValueError(f"Unknown case '{case_id}'")
         documents = self._document_repository.list_by_case(case_id)
         artifacts = self._artifact_repository.list_by_case(case_id)
+        latest_revision = self._mapping_revision_service.latest_revision_number(case_id)
         missing_artifact_ids = self._artifact_repository.list_missing_ids(case_id)
-        artifact_items = tuple(
-            ArtifactItemViewModel(
-                artifact_id=item.artifact_id,
-                display_name=item.display_name,
-                file_path=item.file_path,
-                status="missing" if item.artifact_id in missing_artifact_ids else item.artifact_status,
-                mapping_revision=item.mapping_revision_used,
-                preview_snippet=item.preview_snippet,
+        latest_output_artifact_ids = {item.latest_output_artifact_id for item in documents if item.latest_output_artifact_id}
+        artifact_items = []
+        for item in artifacts:
+            if self._stale_state_service.uses_mapping_artifact(item):
+                rewrite_base_state = self._stale_state_service.rewrite_base_trust_state(item)
+                mapping_state = self._stale_state_service.load_mapping_artifact_state(
+                    artifact=item,
+                    mapping_loader=self._mapping_adapter.load,
+                )
+            else:
+                rewrite_base_state = self._stale_state_service.rewrite_base_trust_state(item)
+                mapping_state = self._stale_state_service.load_mapping_artifact_state(
+                    artifact=item,
+                    mapping_loader=self._mapping_adapter.load,
+                )
+            displayed_status, safety_issue = self._stale_state_service.workspace_artifact_status(
+                artifact=item,
+                latest_revision=latest_revision,
+                output_missing=item.artifact_id in missing_artifact_ids,
+                rewrite_base_issue=rewrite_base_state.issue,
+                mapping_issue=mapping_state.issue,
             )
-            for item in artifacts
-        )
-        artifact_lookup = {item.artifact_id: item for item in artifact_items}
+            can_regenerate, regeneration_reason = self._artifact_regeneration_state(
+                artifact=item,
+                displayed_status=displayed_status,
+                latest_output_artifact_ids=latest_output_artifact_ids,
+                latest_revision=latest_revision,
+            )
+            artifact_items.append(
+                ArtifactItemViewModel(
+                    artifact_id=item.artifact_id,
+                    document_id=item.document_id,
+                    display_name=item.display_name,
+                    file_path=item.file_path,
+                    status=displayed_status,
+                    mapping_revision=item.mapping_revision_used,
+                    preview_snippet=item.preview_snippet,
+                    stale_reason=safety_issue if displayed_status == "stale" else item.stale_reason,
+                    supersedes_artifact_id=item.supersedes_artifact_id,
+                    safety_issue=safety_issue,
+                    can_regenerate=can_regenerate,
+                    regeneration_unavailable_reason=regeneration_reason,
+                )
+            )
+        artifact_items_tuple = tuple(artifact_items)
+        artifact_lookup = {item.artifact_id: item for item in artifact_items_tuple}
         document_items = tuple(
             DocumentItemViewModel(
                 document_id=item.document_id,
@@ -190,8 +309,12 @@ class CaseWorkspaceService:
                 status=item.document_status,
                 preview_snippet=item.preview_snippet,
                 source_display_path=item.source_display_path,
-                latest_output_path=artifact_lookup[item.latest_output_artifact_id].file_path if item.latest_output_artifact_id in artifact_lookup else None,
-                latest_output_status=artifact_lookup[item.latest_output_artifact_id].status if item.latest_output_artifact_id in artifact_lookup else None,
+                latest_output_path=artifact_lookup[item.latest_output_artifact_id].file_path
+                if item.latest_output_artifact_id in artifact_lookup
+                else None,
+                latest_output_status=artifact_lookup[item.latest_output_artifact_id].status
+                if item.latest_output_artifact_id in artifact_lookup
+                else None,
                 error_summary=item.last_error_summary,
             )
             for item in documents
@@ -206,14 +329,19 @@ class CaseWorkspaceService:
             status_summary=self._derive_case_status(
                 stored_status=case_record.status_summary,
                 documents=document_items,
-                artifacts=artifact_items,
+                artifacts=artifact_items_tuple,
             ),
-            active_mapping_revision=self._mapping_revision_service.latest_revision_number(case_id),
+            active_mapping_revision=latest_revision,
             delete_available=delete_available,
             delete_unavailable_reason=delete_unavailable_reason,
             documents=document_items,
-            artifacts=artifact_items,
+            artifacts=artifact_items_tuple,
         )
+
+    def _workspace_with_synced_status(self, case_id: str) -> CaseWorkspaceViewModel:
+        workspace = self._to_workspace(case_id)
+        self._case_repository.update_status(case_id, status_summary=workspace.status_summary)
+        return self._to_workspace(case_id)
 
     def load_workspace(self) -> WorkspaceLoadViewModel:
         return self._build_workspace_load()
@@ -243,7 +371,7 @@ class CaseWorkspaceService:
         if case_record is None:
             raise ValueError(f"Unknown case '{case_id}'")
         batch_result = self._batch_service.run_case_anonymization(case_record, txt_file_paths)
-        workspace = self._to_workspace(case_id)
+        workspace = self._workspace_with_synced_status(case_id)
         return BatchRunViewModel(
             case_id=case_id,
             job_id=batch_result.job.job_id,
@@ -263,4 +391,64 @@ class CaseWorkspaceService:
             processed_count=batch_result.job.success_count,
             failed_count=batch_result.job.failure_count,
             progress_messages=batch_result.progress_messages,
+        )
+
+    def load_substitution_review(self, case_id: str, document_id: str) -> SubstitutionReviewViewModel:
+        return self._substitution_review_service.load_review(case_id=case_id, document_id=document_id)
+
+    def remove_substitutions(
+        self,
+        case_id: str,
+        document_id: str,
+        mapping_entry_ids: tuple[str, ...],
+    ) -> ReviewUpdateViewModel:
+        document_id, impacted_artifact_ids = self._substitution_review_service.apply_removal(
+            case_id=case_id,
+            document_id=document_id,
+            mapping_entry_ids=mapping_entry_ids,
+        )
+        workspace = self._workspace_with_synced_status(case_id)
+        review = self.load_substitution_review(case_id, document_id)
+        return ReviewUpdateViewModel(
+            workspace=workspace,
+            review=review,
+            removed_mapping_entry_ids=tuple(sorted(set(mapping_entry_ids))),
+            impacted_artifact_ids=impacted_artifact_ids,
+        )
+
+    def regenerate_stale_output(self, case_id: str, artifact_id: str) -> StaleArtifactRegenerationViewModel:
+        document_id, regenerated_artifact_id = self._stale_output_regeneration_service.regenerate(
+            case_id=case_id,
+            artifact_id=artifact_id,
+        )
+        workspace = self._workspace_with_synced_status(case_id)
+        review = self.load_substitution_review(case_id, document_id)
+        return StaleArtifactRegenerationViewModel(
+            workspace=workspace,
+            artifact_id=artifact_id,
+            regenerated_artifact_id=regenerated_artifact_id,
+            document_id=document_id,
+            review=review,
+        )
+
+    def deanonymize_pasted_text(self, case_id: str, input_text: str) -> DeanonymizationSessionViewModel:
+        return self._pasted_deanonymization_service.deanonymize(case_id=case_id, input_text=input_text)
+
+    def export_deanonymized_result(
+        self,
+        case_id: str,
+        session_id: str,
+        destination: Path | None = None,
+    ) -> DeanonymizationExportViewModel:
+        export_result = self._pasted_deanonymization_service.export_result(
+            case_id=case_id,
+            session_id=session_id,
+            destination=destination,
+        )
+        workspace = self._workspace_with_synced_status(case_id)
+        return DeanonymizationExportViewModel(
+            workspace=workspace,
+            session=export_result.session,
+            artifact_id=export_result.artifact_id,
+            file_path=export_result.file_path,
         )

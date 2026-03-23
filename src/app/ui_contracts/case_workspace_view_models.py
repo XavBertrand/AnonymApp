@@ -35,11 +35,17 @@ class DocumentItemViewModel:
 @dataclass(frozen=True)
 class ArtifactItemViewModel:
     artifact_id: str
+    document_id: str | None
     display_name: str
     file_path: str
     status: str
     mapping_revision: int | None
     preview_snippet: str = ""
+    stale_reason: str | None = None
+    supersedes_artifact_id: str | None = None
+    safety_issue: str | None = None
+    can_regenerate: bool = False
+    regeneration_unavailable_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -81,3 +87,67 @@ class BatchRunViewModel:
     processed_count: int
     failed_count: int
     progress_messages: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class SubstitutionRowViewModel:
+    mapping_entry_id: str
+    original_value: str
+    replacement_value: str
+    entity_type: str
+    removable: bool
+    unavailable_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class SubstitutionReviewViewModel:
+    case_id: str
+    document_id: str
+    artifact_id: str
+    document_name: str
+    artifact_status: str
+    mapping_revision: int | None
+    preview_text: str
+    stale_reason: str | None = None
+    editable: bool = False
+    edit_unavailable_reason: str | None = None
+    substitutions: tuple[SubstitutionRowViewModel, ...] = ()
+
+
+@dataclass(frozen=True)
+class ReviewUpdateViewModel:
+    workspace: CaseWorkspaceViewModel
+    review: SubstitutionReviewViewModel
+    removed_mapping_entry_ids: tuple[str, ...]
+    impacted_artifact_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class StaleArtifactRegenerationViewModel:
+    workspace: CaseWorkspaceViewModel
+    artifact_id: str
+    regenerated_artifact_id: str
+    document_id: str
+    review: SubstitutionReviewViewModel | None = None
+
+
+@dataclass(frozen=True)
+class DeanonymizationSessionViewModel:
+    session_id: str
+    case_id: str
+    input_text: str
+    result_text: str
+    match_count: int
+    result_state: str
+    mapping_revision: int | None
+    status_message: str
+    exported_artifact_id: str | None = None
+    exported_path: str | None = None
+
+
+@dataclass(frozen=True)
+class DeanonymizationExportViewModel:
+    workspace: CaseWorkspaceViewModel
+    session: DeanonymizationSessionViewModel
+    artifact_id: str
+    file_path: str

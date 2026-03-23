@@ -56,6 +56,17 @@ class MappingRevisionRepository:
             ).fetchone()
         return self._from_row(row) if row else None
 
+    def get(self, case_id: str, revision_number: int) -> MappingRevisionRecord | None:
+        with self._database.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT * FROM mapping_revisions
+                WHERE case_id = ? AND revision_number = ?
+                """,
+                (case_id, revision_number),
+            ).fetchone()
+        return self._from_row(row) if row else None
+
     def list_by_case(self, case_id: str) -> list[MappingRevisionRecord]:
         with self._database.connect() as connection:
             rows = connection.execute(

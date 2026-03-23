@@ -163,6 +163,7 @@ class CaseBatchService:
                         preview_snippet=_snippet(merge_result.normalized_text),
                         job_id=job.job_id,
                         mapping_path=str(result.mapping_path),
+                        content_sha256=self._artifact_store.file_sha256(result.output_path),
                     ),
                     connection=connection,
                 )

@@ -76,6 +76,7 @@ class ArtifactRecord:
     preview_snippet: str
     job_id: str | None
     mapping_path: str | None
+    content_sha256: str | None = None
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,8 @@ class DeanonymizationSessionRecord:
     case_id: str
     created_at: str
     mapping_revision_used: int | None
+    input_text_path: str
+    result_text_path: str
     input_preview_snippet: str
     result_preview_snippet: str
     match_count: int

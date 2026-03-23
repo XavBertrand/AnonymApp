@@ -86,6 +86,7 @@ _SCHEMA = (
         preview_snippet TEXT NOT NULL,
         job_id TEXT,
         mapping_path TEXT,
+        content_sha256 TEXT,
         FOREIGN KEY(case_id) REFERENCES cases(case_id)
     )
     """,
@@ -95,6 +96,8 @@ _SCHEMA = (
         case_id TEXT NOT NULL,
         created_at TEXT NOT NULL,
         mapping_revision_used INTEGER,
+        input_text_path TEXT,
+        result_text_path TEXT,
         input_preview_snippet TEXT NOT NULL,
         result_preview_snippet TEXT NOT NULL,
         match_count INTEGER NOT NULL,
@@ -134,6 +137,20 @@ class MetadataDatabase:
         with self.connect() as connection:
             for statement in _SCHEMA:
                 connection.execute(statement)
+            artifact_columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(artifacts)").fetchall()
+            }
+            if "content_sha256" not in artifact_columns:
+                connection.execute("ALTER TABLE artifacts ADD COLUMN content_sha256 TEXT")
+            session_columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(deanonymization_sessions)").fetchall()
+            }
+            if "input_text_path" not in session_columns:
+                connection.execute("ALTER TABLE deanonymization_sessions ADD COLUMN input_text_path TEXT")
+            if "result_text_path" not in session_columns:
+                connection.execute("ALTER TABLE deanonymization_sessions ADD COLUMN result_text_path TEXT")
             connection.commit()
 
     @contextmanager
