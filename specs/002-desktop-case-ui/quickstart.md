@@ -71,3 +71,35 @@ Validate the planned desktop case workflow end to end while preserving the exist
 2. Build the portable Windows distribution.
 3. Launch the packaged executable from an extracted folder with no network access.
 4. Confirm readiness succeeds using packaged local models and at least one TXT anonymization run completes.
+
+## 8. Encoded Validation Scenarios
+
+The following automated scenarios now encode the MVP quickstart for repeatable hands-on validation:
+
+- `tests/ui/test_desktop_workspace_smoke.py`
+  - create case
+  - anonymize TXT files
+  - reopen case
+  - load review state
+  - remove one substitution
+  - regenerate one stale output
+  - paste deanonymized text
+  - export the deanonymized result
+- `tests/packaging/test_windows_portable_smoke.py`
+  - validate packaged `models/` presence
+  - validate root-relative model resolution from an extracted folder
+  - validate portable export path separation from case-managed data
+  - validate regenerated/deanonymized artifact naming in portable mode
+- `tests/packaging/test_desktop_performance_smoke.py`
+  - startup usability smoke
+  - case-switch responsiveness smoke
+  - first visible progress signal smoke
+- `tests/unit/persistence/test_case_storage_integrity.py`
+  - missing-artifact reconciliation
+  - readiness snapshot persistence for case/job inspection
+
+Recommended hands-on testing order:
+
+1. Run the automated smoke slices above.
+2. Launch the desktop app in development mode and repeat the same workflow with real local model assets.
+3. Build the portable bundle and repeat the smoke workflow from an extracted folder on Windows 10/11.

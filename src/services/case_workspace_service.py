@@ -32,9 +32,11 @@ from src.app.ui_contracts.case_workspace_view_models import (
     WorkspaceLoadViewModel,
 )
 from src.services.anonymization_service import AnonymizationService
+from src.services.artifact_maintenance_service import ArtifactMaintenanceService
 from src.services.case_batch_service import CaseBatchService
 from src.services.case_mapping_policy import CaseMappingPolicy
 from src.services.deanonymization_service import DeanonymizationService
+from src.services.desktop_error_translator import DesktopErrorTranslator
 from src.services.mapping_revision_service import MappingRevisionService
 from src.services.pasted_deanonymization_service import PastedDeanonymizationService
 from src.services.readiness_presentation_service import ReadinessPresentationService
@@ -75,6 +77,8 @@ class CaseWorkspaceService:
         stale_output_regeneration_service: StaleOutputRegenerationService | None = None,
         pasted_deanonymization_service: PastedDeanonymizationService | None = None,
         readiness_presentation_service: ReadinessPresentationService | None = None,
+        artifact_maintenance_service: ArtifactMaintenanceService | None = None,
+        error_translator: DesktopErrorTranslator | None = None,
     ) -> None:
         self._database = database or MetadataDatabase()
         self._database.bootstrap()
@@ -92,6 +96,7 @@ class CaseWorkspaceService:
         self._document_registry = document_registry or DocumentAdapterRegistry([TxtDocumentAdapter()])
         self._mapping_adapter = mapping_adapter or CanonicalMappingAdapter()
         self._readiness_service = readiness_service or ReadinessService()
+        self._error_translator = error_translator or DesktopErrorTranslator()
         self._anonymization_service = anonymization_service or AnonymizationService(
             document_registry=self._document_registry,
         )
@@ -121,6 +126,13 @@ class CaseWorkspaceService:
             mapping_revision_service=self._mapping_revision_service,
             anonymization_service=self._anonymization_service,
             readiness_service=self._readiness_service,
+            error_translator=self._error_translator,
+        )
+        self._artifact_maintenance_service = artifact_maintenance_service or ArtifactMaintenanceService(
+            database=self._database,
+            case_repository=self._case_repository,
+            artifact_repository=self._artifact_repository,
+            artifact_store=self._artifact_store,
         )
         self._substitution_review_service = substitution_review_service or SubstitutionReviewService(
             database=self._database,
@@ -157,6 +169,11 @@ class CaseWorkspaceService:
             deanonymization_service=self._deanonymization_service,
             readiness_service=self._readiness_service,
         )
+
+    def _translate_error(self, exc: Exception, *, operation: str) -> Exception:
+        if isinstance(exc, CaseDeletionBlockedError):
+            return exc
+        return ValueError(self._error_translator.translate(exc, operation=operation))
 
     def _delete_availability(self, case_id: str, *, running_case_ids: set[str] | None = None) -> tuple[bool, str | None]:
         active_running_case_ids = running_case_ids if running_case_ids is not None else self._job_repository.running_case_ids()
@@ -249,6 +266,7 @@ class CaseWorkspaceService:
         case_record = self._case_repository.get(case_id)
         if case_record is None:
             raise ValueError(f"Unknown case '{case_id}'")
+        self._artifact_maintenance_service.reconcile_case(case_id)
         documents = self._document_repository.list_by_case(case_id)
         artifacts = self._artifact_repository.list_by_case(case_id)
         latest_revision = self._mapping_revision_service.latest_revision_number(case_id)
@@ -256,18 +274,11 @@ class CaseWorkspaceService:
         latest_output_artifact_ids = {item.latest_output_artifact_id for item in documents if item.latest_output_artifact_id}
         artifact_items = []
         for item in artifacts:
-            if self._stale_state_service.uses_mapping_artifact(item):
-                rewrite_base_state = self._stale_state_service.rewrite_base_trust_state(item)
-                mapping_state = self._stale_state_service.load_mapping_artifact_state(
-                    artifact=item,
-                    mapping_loader=self._mapping_adapter.load,
-                )
-            else:
-                rewrite_base_state = self._stale_state_service.rewrite_base_trust_state(item)
-                mapping_state = self._stale_state_service.load_mapping_artifact_state(
-                    artifact=item,
-                    mapping_loader=self._mapping_adapter.load,
-                )
+            rewrite_base_state = self._stale_state_service.rewrite_base_trust_state(item)
+            mapping_state = self._stale_state_service.load_mapping_artifact_state(
+                artifact=item,
+                mapping_loader=self._mapping_adapter.load,
+            )
             displayed_status, safety_issue = self._stale_state_service.workspace_artifact_status(
                 artifact=item,
                 latest_revision=latest_revision,
@@ -341,61 +352,79 @@ class CaseWorkspaceService:
         return self._to_workspace(case_id)
 
     def load_workspace(self) -> WorkspaceLoadViewModel:
-        return self._build_workspace_load()
+        try:
+            return self._build_workspace_load()
+        except Exception as exc:
+            raise self._translate_error(exc, operation="load_workspace") from exc
 
     def get_readiness_details(self) -> ReadinessDetailsViewModel:
         return self._readiness_presentation_service.details()
 
     def create_case(self, display_name: str) -> CaseWorkspaceViewModel:
-        record = self._case_repository.create(display_name)
-        self._artifact_store.ensure_case_dirs(record.case_id, record.display_name)
-        return self._to_workspace(record.case_id)
+        try:
+            record = self._case_repository.create(display_name)
+            self._artifact_store.ensure_case_dirs(record.case_id, record.display_name)
+            return self._to_workspace(record.case_id)
+        except Exception as exc:
+            raise self._translate_error(exc, operation="create_case") from exc
 
     def open_case(self, case_id: str) -> CaseWorkspaceViewModel:
-        self._case_repository.set_last_opened(case_id)
-        return self._to_workspace(case_id)
+        try:
+            self._case_repository.set_last_opened(case_id)
+            return self._to_workspace(case_id)
+        except Exception as exc:
+            raise self._translate_error(exc, operation="open_case") from exc
 
     def delete_case(self, case_id: str, *, confirmed: bool) -> WorkspaceLoadViewModel:
-        if not confirmed:
-            raise ValueError("Case deletion requires explicit confirmation")
-        case_record = self._case_repository.get(case_id)
-        if case_record is None:
-            raise ValueError(f"Unknown case '{case_id}'")
-        if self._job_repository.has_running_job(case_id):
-            raise CaseDeletionBlockedError(self.DELETE_WHILE_RUNNING_MESSAGE)
-        self._case_repository.soft_delete(case_id)
-        return self._build_workspace_load()
+        try:
+            if not confirmed:
+                raise ValueError("Case deletion requires explicit confirmation")
+            case_record = self._case_repository.get(case_id)
+            if case_record is None:
+                raise ValueError(f"Unknown case '{case_id}'")
+            if self._job_repository.has_running_job(case_id):
+                raise CaseDeletionBlockedError(self.DELETE_WHILE_RUNNING_MESSAGE)
+            self._case_repository.soft_delete(case_id)
+            return self._build_workspace_load()
+        except Exception as exc:
+            raise self._translate_error(exc, operation="delete_case") from exc
 
     def run_case_anonymization(self, case_id: str, txt_file_paths: list[Path]) -> BatchRunViewModel:
-        case_record = self._case_repository.get(case_id)
-        if case_record is None:
-            raise ValueError(f"Unknown case '{case_id}'")
-        self._readiness_presentation_service.assert_operation_allowed("anonymization")
-        batch_result = self._batch_service.run_case_anonymization(case_record, txt_file_paths)
-        workspace = self._workspace_with_synced_status(case_id)
-        return BatchRunViewModel(
-            case_id=case_id,
-            job_id=batch_result.job.job_id,
-            status=batch_result.job.job_status,
-            items=tuple(
-                BatchRunItemViewModel(
-                    source_filename=item.source_filename,
-                    status=item.status,
-                    output_path=item.output_path,
-                    mapping_path=item.mapping_path,
-                    error_summary=item.error_summary,
-                    mapping_revision=item.mapping_revision,
-                )
-                for item in batch_result.items
-            ),
-            workspace=workspace,
-            processed_count=batch_result.job.success_count,
-            failed_count=batch_result.job.failure_count,
-            progress_messages=batch_result.progress_messages,
-        )
+        try:
+            case_record = self._case_repository.get(case_id)
+            if case_record is None:
+                raise ValueError(f"Unknown case '{case_id}'")
+            self._readiness_presentation_service.assert_operation_allowed("anonymization")
+            batch_result = self._batch_service.run_case_anonymization(case_record, txt_file_paths)
+            workspace = self._workspace_with_synced_status(case_id)
+            return BatchRunViewModel(
+                case_id=case_id,
+                job_id=batch_result.job.job_id,
+                status=batch_result.job.job_status,
+                items=tuple(
+                    BatchRunItemViewModel(
+                        source_filename=item.source_filename,
+                        status=item.status,
+                        output_path=item.output_path,
+                        mapping_path=item.mapping_path,
+                        error_summary=item.error_summary,
+                        mapping_revision=item.mapping_revision,
+                    )
+                    for item in batch_result.items
+                ),
+                workspace=workspace,
+                processed_count=batch_result.job.success_count,
+                failed_count=batch_result.job.failure_count,
+                progress_messages=batch_result.progress_messages,
+            )
+        except Exception as exc:
+            raise self._translate_error(exc, operation="run_case_anonymization") from exc
 
     def load_substitution_review(self, case_id: str, document_id: str) -> SubstitutionReviewViewModel:
-        return self._substitution_review_service.load_review(case_id=case_id, document_id=document_id)
+        try:
+            return self._substitution_review_service.load_review(case_id=case_id, document_id=document_id)
+        except Exception as exc:
+            raise self._translate_error(exc, operation="load_substitution_review") from exc
 
     def remove_substitutions(
         self,
@@ -403,38 +432,47 @@ class CaseWorkspaceService:
         document_id: str,
         mapping_entry_ids: tuple[str, ...],
     ) -> ReviewUpdateViewModel:
-        document_id, impacted_artifact_ids = self._substitution_review_service.apply_removal(
-            case_id=case_id,
-            document_id=document_id,
-            mapping_entry_ids=mapping_entry_ids,
-        )
-        workspace = self._workspace_with_synced_status(case_id)
-        review = self.load_substitution_review(case_id, document_id)
-        return ReviewUpdateViewModel(
-            workspace=workspace,
-            review=review,
-            removed_mapping_entry_ids=tuple(sorted(set(mapping_entry_ids))),
-            impacted_artifact_ids=impacted_artifact_ids,
-        )
+        try:
+            document_id, impacted_artifact_ids = self._substitution_review_service.apply_removal(
+                case_id=case_id,
+                document_id=document_id,
+                mapping_entry_ids=mapping_entry_ids,
+            )
+            workspace = self._workspace_with_synced_status(case_id)
+            review = self.load_substitution_review(case_id, document_id)
+            return ReviewUpdateViewModel(
+                workspace=workspace,
+                review=review,
+                removed_mapping_entry_ids=tuple(sorted(set(mapping_entry_ids))),
+                impacted_artifact_ids=impacted_artifact_ids,
+            )
+        except Exception as exc:
+            raise self._translate_error(exc, operation="remove_substitutions") from exc
 
     def regenerate_stale_output(self, case_id: str, artifact_id: str) -> StaleArtifactRegenerationViewModel:
-        document_id, regenerated_artifact_id = self._stale_output_regeneration_service.regenerate(
-            case_id=case_id,
-            artifact_id=artifact_id,
-        )
-        workspace = self._workspace_with_synced_status(case_id)
-        review = self.load_substitution_review(case_id, document_id)
-        return StaleArtifactRegenerationViewModel(
-            workspace=workspace,
-            artifact_id=artifact_id,
-            regenerated_artifact_id=regenerated_artifact_id,
-            document_id=document_id,
-            review=review,
-        )
+        try:
+            document_id, regenerated_artifact_id = self._stale_output_regeneration_service.regenerate(
+                case_id=case_id,
+                artifact_id=artifact_id,
+            )
+            workspace = self._workspace_with_synced_status(case_id)
+            review = self.load_substitution_review(case_id, document_id)
+            return StaleArtifactRegenerationViewModel(
+                workspace=workspace,
+                artifact_id=artifact_id,
+                regenerated_artifact_id=regenerated_artifact_id,
+                document_id=document_id,
+                review=review,
+            )
+        except Exception as exc:
+            raise self._translate_error(exc, operation="regenerate_stale_output") from exc
 
     def deanonymize_pasted_text(self, case_id: str, input_text: str) -> DeanonymizationSessionViewModel:
-        self._readiness_presentation_service.assert_operation_allowed("deanonymization")
-        return self._pasted_deanonymization_service.deanonymize(case_id=case_id, input_text=input_text)
+        try:
+            self._readiness_presentation_service.assert_operation_allowed("deanonymization")
+            return self._pasted_deanonymization_service.deanonymize(case_id=case_id, input_text=input_text)
+        except Exception as exc:
+            raise self._translate_error(exc, operation="deanonymize_pasted_text") from exc
 
     def export_deanonymized_result(
         self,
@@ -442,15 +480,18 @@ class CaseWorkspaceService:
         session_id: str,
         destination: Path | None = None,
     ) -> DeanonymizationExportViewModel:
-        export_result = self._pasted_deanonymization_service.export_result(
-            case_id=case_id,
-            session_id=session_id,
-            destination=destination,
-        )
-        workspace = self._workspace_with_synced_status(case_id)
-        return DeanonymizationExportViewModel(
-            workspace=workspace,
-            session=export_result.session,
-            artifact_id=export_result.artifact_id,
-            file_path=export_result.file_path,
-        )
+        try:
+            export_result = self._pasted_deanonymization_service.export_result(
+                case_id=case_id,
+                session_id=session_id,
+                destination=destination,
+            )
+            workspace = self._workspace_with_synced_status(case_id)
+            return DeanonymizationExportViewModel(
+                workspace=workspace,
+                session=export_result.session,
+                artifact_id=export_result.artifact_id,
+                file_path=export_result.file_path,
+            )
+        except Exception as exc:
+            raise self._translate_error(exc, operation="export_deanonymized_result") from exc

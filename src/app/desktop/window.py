@@ -11,6 +11,7 @@ from src.app.desktop.widgets.mapping_review_panel import MappingReviewPanel
 from src.app.desktop.widgets.case_workspace_panel import CaseWorkspacePanel
 from src.app.desktop.widgets.deanonymization_panel import DeanonymizationPanel
 from src.app.desktop.widgets.delete_case_dialog import DeleteCaseDialog
+from src.app.desktop.widgets.error_banner import ErrorBanner
 from src.app.desktop.widgets.readiness_details_dialog import ReadinessDetailsDialog
 from src.app.desktop.widgets.readiness_panel import ReadinessPanel
 from src.app.desktop.widgets.result_preview_panel import ResultPreviewPanel
@@ -36,12 +37,14 @@ class DesktopMainWindow(QMainWindow):
         self.mapping_review_panel = MappingReviewPanel()
         self.deanonymization_panel = DeanonymizationPanel()
         self.readiness_panel = ReadinessPanel()
+        self.error_banner = ErrorBanner()
         self.result_preview_panel = ResultPreviewPanel()
         self.current_case_id: str | None = None
         self.pending_batch = None
         self.pending_deanonymization = None
         self.last_error: str | None = None
         self.setWindowTitle(fr.APP_TITLE)
+        self._apply_theme()
         self.case_history_panel.bind_actions(
             create_case=self.create_case,
             open_case=self.open_case,
@@ -60,31 +63,53 @@ class DesktopMainWindow(QMainWindow):
         self.result_preview_panel.bind_regeneration_action(self.regenerate_stale_output)
 
     def _apply_workspace_load(self, model) -> None:
+        self.error_banner.clear()
         self.readiness_panel.set_summary(model.readiness)
         self.case_history_panel.set_cases(model.cases)
         if model.selected_case is None:
             self.current_case_id = None
             self.case_workspace_panel.set_workspace(None)
+            self.case_workspace_panel.set_status_message(None)
             self.mapping_review_panel.set_review(None)
             self.deanonymization_panel.set_session(None)
             self.result_preview_panel.set_artifacts(())
             return
         self.current_case_id = model.selected_case.case_id
         self.case_workspace_panel.set_workspace(model.selected_case)
+        self.case_workspace_panel.set_status_message(None)
         self.mapping_review_panel.set_review(None)
         self.deanonymization_panel.set_session(None)
         self.result_preview_panel.set_artifacts(model.selected_case.artifacts)
 
+    def _apply_theme(self) -> None:
+        theme_path = Path(__file__).resolve().parent / "styles" / "dark_theme.qss"
+        if not theme_path.exists():
+            return
+        stylesheet = theme_path.read_text(encoding="utf-8")
+        self.setStyleSheet(stylesheet)
+
     def load(self) -> None:
-        self._apply_workspace_load(self.presenter.load_workspace())
+        try:
+            self._apply_workspace_load(self.presenter.load_workspace())
+        except Exception as exc:
+            self.last_error = str(exc)
+            self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
 
     def create_case(self, display_name: str) -> None:
-        self.presenter.create_case(display_name)
-        self._apply_workspace_load(self.presenter.load_workspace())
+        try:
+            self.presenter.create_case(display_name)
+            self._apply_workspace_load(self.presenter.load_workspace())
+        except Exception as exc:
+            self.last_error = str(exc)
+            self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
 
     def open_case(self, case_id: str) -> None:
-        self.presenter.open_case(case_id)
-        self._apply_workspace_load(self.presenter.load_workspace())
+        try:
+            self.presenter.open_case(case_id)
+            self._apply_workspace_load(self.presenter.load_workspace())
+        except Exception as exc:
+            self.last_error = str(exc)
+            self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
 
     def delete_case(self, case_id: str) -> None:
         item = next((case for case in self.case_history_panel.items if case.case_id == case_id), None)
@@ -92,11 +117,13 @@ class DesktopMainWindow(QMainWindow):
             raise ValueError(f"Unknown case '{case_id}'")
         if (self.pending_batch is not None or self.pending_deanonymization is not None) and self.current_case_id == case_id:
             self.last_error = CaseWorkspaceService.DELETE_WHILE_RUNNING_MESSAGE
+            self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
             self.delete_case_dialog.show_blocked(self.last_error)
             return
         if not item.delete_available:
             self.last_error = item.delete_unavailable_reason
             if self.last_error is not None:
+                self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
                 self.delete_case_dialog.show_blocked(self.last_error)
             return
         if not self.delete_case_dialog.request_confirmation(item.display_name):
@@ -105,6 +132,7 @@ class DesktopMainWindow(QMainWindow):
             model = self.presenter.delete_case(case_id, confirmed=True)
         except CaseDeletionBlockedError as exc:
             self.last_error = str(exc)
+            self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
             self.delete_case_dialog.show_blocked(self.last_error)
             return
         self._apply_workspace_load(model)
@@ -112,6 +140,7 @@ class DesktopMainWindow(QMainWindow):
     def _apply_batch_result(self, batch) -> None:
         self.pending_batch = None
         self.last_error = None
+        self.error_banner.clear()
         self.case_workspace_panel.set_batch_result(batch)
         self.case_workspace_panel.set_workspace(batch.workspace)
         self.mapping_review_panel.set_review(None)
@@ -121,10 +150,15 @@ class DesktopMainWindow(QMainWindow):
     def _apply_batch_error(self, error: Exception) -> None:
         self.pending_batch = None
         self.last_error = str(error)
+        self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
+        self.case_workspace_panel.set_status_message(None)
 
     def run_case_anonymization(self, txt_file_paths: list[Path]) -> None:
         if self.current_case_id is None:
             raise RuntimeError("A case must be selected before anonymization")
+        self.last_error = None
+        self.error_banner.clear()
+        self.case_workspace_panel.set_status_message(fr.WORKSPACE_RUNNING_MESSAGE)
         self.pending_batch = self.worker.submit(
             self.presenter.run_case_anonymization,
             self.current_case_id,
@@ -136,17 +170,25 @@ class DesktopMainWindow(QMainWindow):
     def _apply_deanonymization_result(self, session) -> None:
         self.pending_deanonymization = None
         self.last_error = None
+        self.error_banner.clear()
+        self.case_workspace_panel.set_status_message(None)
         self.deanonymization_panel.set_session(session)
 
     def _apply_deanonymization_error(self, error: Exception) -> None:
         self.pending_deanonymization = None
         self.last_error = str(error)
+        self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
+        self.case_workspace_panel.set_status_message(None)
 
     def load_substitution_review(self, document_id: str) -> None:
         if self.current_case_id is None:
             raise RuntimeError("A case must be selected before loading substitution review")
-        review = self.presenter.load_substitution_review(self.current_case_id, document_id)
-        self.mapping_review_panel.set_review(review)
+        try:
+            review = self.presenter.load_substitution_review(self.current_case_id, document_id)
+            self.mapping_review_panel.set_review(review)
+        except Exception as exc:
+            self.last_error = str(exc)
+            self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
 
     def remove_substitutions(self, mapping_entry_ids: tuple[str, ...]) -> None:
         if self.current_case_id is None:
@@ -154,28 +196,39 @@ class DesktopMainWindow(QMainWindow):
         review = self.mapping_review_panel.review
         if review is None:
             raise RuntimeError("A substitution review must be loaded before removing substitutions")
-        update = self.presenter.remove_substitutions(
-            self.current_case_id,
-            review.document_id,
-            mapping_entry_ids,
-        )
-        self._apply_workspace_load(self.presenter.load_workspace())
-        self.mapping_review_panel.set_review_update(update)
-        self.result_preview_panel.set_artifacts(update.workspace.artifacts)
+        try:
+            update = self.presenter.remove_substitutions(
+                self.current_case_id,
+                review.document_id,
+                mapping_entry_ids,
+            )
+            self._apply_workspace_load(self.presenter.load_workspace())
+            self.mapping_review_panel.set_review_update(update)
+            self.result_preview_panel.set_artifacts(update.workspace.artifacts)
+        except Exception as exc:
+            self.last_error = str(exc)
+            self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
 
     def regenerate_stale_output(self, artifact_id: str) -> None:
         if self.current_case_id is None:
             raise RuntimeError("A case must be selected before regenerating output")
-        result = self.presenter.regenerate_stale_output(self.current_case_id, artifact_id)
-        self._apply_workspace_load(self.presenter.load_workspace())
-        self.result_preview_panel.set_regeneration_result(result)
-        self.result_preview_panel.set_artifacts(result.workspace.artifacts)
-        if result.review is not None:
-            self.mapping_review_panel.set_review(result.review)
+        try:
+            result = self.presenter.regenerate_stale_output(self.current_case_id, artifact_id)
+            self._apply_workspace_load(self.presenter.load_workspace())
+            self.result_preview_panel.set_regeneration_result(result)
+            self.result_preview_panel.set_artifacts(result.workspace.artifacts)
+            if result.review is not None:
+                self.mapping_review_panel.set_review(result.review)
+        except Exception as exc:
+            self.last_error = str(exc)
+            self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
 
     def deanonymize_pasted_text(self, input_text: str) -> None:
         if self.current_case_id is None:
             raise RuntimeError("A case must be selected before deanonymization")
+        self.last_error = None
+        self.error_banner.clear()
+        self.case_workspace_panel.set_status_message(fr.DEANON_RUNNING_MESSAGE)
         self.pending_deanonymization = self.worker.submit(
             self.presenter.deanonymize_pasted_text,
             self.current_case_id,
@@ -190,14 +243,19 @@ class DesktopMainWindow(QMainWindow):
         session = self.deanonymization_panel.session
         if session is None:
             raise RuntimeError("A deanonymization result must be available before export")
-        result = self.presenter.export_deanonymized_result(
-            self.current_case_id,
-            session.session_id,
-            destination,
-        )
-        self.case_workspace_panel.set_workspace(result.workspace)
-        self.result_preview_panel.set_artifacts(result.workspace.artifacts)
-        self.deanonymization_panel.set_export_result(result)
+        try:
+            result = self.presenter.export_deanonymized_result(
+                self.current_case_id,
+                session.session_id,
+                destination,
+            )
+            self.case_workspace_panel.set_workspace(result.workspace)
+            self.case_workspace_panel.set_status_message(None)
+            self.result_preview_panel.set_artifacts(result.workspace.artifacts)
+            self.deanonymization_panel.set_export_result(result)
+        except Exception as exc:
+            self.last_error = str(exc)
+            self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
 
     def show_readiness_details(self) -> None:
         self.readiness_details_dialog.show_details(self.presenter.get_readiness_details())

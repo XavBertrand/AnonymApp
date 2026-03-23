@@ -129,7 +129,7 @@ def test_export_failure_cleans_new_file_and_keeps_session_link_consistent(tmp_pa
     )
     destination = tmp_path / "new-export.txt"
 
-    with pytest.raises(RuntimeError, match="artifact write failed"):
+    with pytest.raises(ValueError, match="artifact write failed"):
         failing.export_deanonymized_result(workspace.case_id, session.session_id, destination)
 
     assert not destination.exists()

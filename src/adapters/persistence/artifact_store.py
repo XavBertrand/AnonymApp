@@ -73,6 +73,21 @@ class ArtifactStore:
         export_root.mkdir(parents=True, exist_ok=True)
         return export_root / f"deanonymized-{session_id[:8]}-{export_id[:8]}.txt"
 
+    def case_temporary_files(self, case_id: str, display_name: str) -> tuple[Path, ...]:
+        dirs = self.ensure_case_dirs(case_id, display_name)
+        temp_files: list[Path] = []
+        for directory in (dirs["outputs"], dirs["mappings"], dirs["sessions"]):
+            temp_files.extend(path for path in directory.glob("*.tmp") if path.is_file())
+            temp_files.extend(path for path in directory.glob(".*.tmp") if path.is_file())
+        return tuple(sorted(temp_files))
+
+    def cleanup_case_temporary_files(self, case_id: str, display_name: str) -> tuple[Path, ...]:
+        removed: list[Path] = []
+        for path in self.case_temporary_files(case_id, display_name):
+            path.unlink(missing_ok=True)
+            removed.append(path)
+        return tuple(removed)
+
     @staticmethod
     def fingerprint(source_path: Path) -> str:
         digest = hashlib.sha256()

@@ -15,6 +15,7 @@ from src.adapters.persistence.document_repository import DocumentRepository
 from src.adapters.persistence.job_repository import JobRepository
 from src.adapters.persistence.records import ArtifactRecord, CaseRecord, JobRecord
 from src.services.anonymization_service import AnonymizationService
+from src.services.desktop_error_translator import DesktopErrorTranslator
 from src.services.mapping_revision_service import MappingRevisionService
 from src.services.privacy_guard import PrivacyGuard
 from src.services.readiness_service import ReadinessService
@@ -56,6 +57,7 @@ class CaseBatchService:
         mapping_revision_service: MappingRevisionService,
         anonymization_service: AnonymizationService,
         readiness_service: ReadinessService,
+        error_translator: DesktopErrorTranslator | None = None,
     ) -> None:
         self._database = database
         self._case_repository = case_repository
@@ -68,6 +70,7 @@ class CaseBatchService:
         self._mapping_revision_service = mapping_revision_service
         self._anonymization_service = anonymization_service
         self._readiness_service = readiness_service
+        self._error_translator = error_translator or DesktopErrorTranslator()
 
     def _create_job(self, case_id: str, item_count: int) -> JobRecord:
         record = JobRecord(
@@ -195,14 +198,15 @@ class CaseBatchService:
                 )
                 progress_messages.append(f"{index}/{len(txt_file_paths)} {source_path.name}: success")
             except Exception as exc:
-                job = replace(job, failure_count=job.failure_count + 1, error_summary=str(exc))
+                translated = self._error_translator.translate(exc, operation="batch_anonymization")
+                job = replace(job, failure_count=job.failure_count + 1, error_summary=translated)
                 items.append(
                     BatchProcessedItem(
                         source_filename=source_path.name,
                         status="failed",
                         output_path=None,
                         mapping_path=None,
-                        error_summary=str(exc),
+                        error_summary=translated,
                         mapping_revision=latest_revision,
                     )
                 )

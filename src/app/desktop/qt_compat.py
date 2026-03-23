@@ -31,6 +31,13 @@ except ModuleNotFoundError:  # pragma: no cover - default in CI for this reposit
     class QWidget:
         def __init__(self, *args, **kwargs) -> None:
             _ = (args, kwargs)
+            self._stylesheet = ""
+
+        def setStyleSheet(self, stylesheet: str) -> None:
+            self._stylesheet = stylesheet
+
+        def styleSheet(self) -> str:
+            return self._stylesheet
 
     class QMainWindow(QWidget):
         def __init__(self, *args, **kwargs) -> None:

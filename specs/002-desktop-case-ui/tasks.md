@@ -166,7 +166,7 @@
 
 ### Packaging
 
-- [ ] T069 [US2] Validate user-facing export location resolution for reopened cases in `scripts/packaging/build_windows_portable.py` and `src/config/desktop_settings.py`
+- [X] T069 [US2] Validate user-facing export location resolution for reopened cases in `scripts/packaging/build_windows_portable.py` and `src/config/desktop_settings.py`
 
 ### Tests
 
@@ -211,7 +211,7 @@
 
 ### Packaging
 
-- [ ] T089 [US3] Validate regenerated artifact naming and supersession behavior in `scripts/packaging/smoke_test_portable.py`
+- [X] T089 [US3] Validate regenerated artifact naming and supersession behavior in `scripts/packaging/smoke_test_portable.py`
 
 ### Tests
 
@@ -253,7 +253,7 @@
 
 ### Packaging
 
-- [ ] T106 [US4] Validate exported deanonymized file paths in portable mode in `scripts/packaging/smoke_test_portable.py`
+- [X] T106 [US4] Validate exported deanonymized file paths in portable mode in `scripts/packaging/smoke_test_portable.py`
 
 ### Tests
 
@@ -275,7 +275,7 @@
 
 ### Persistence
 
-- [ ] T112 [US5] Persist optional readiness snapshots for case/job inspection in `src/adapters/persistence/job_repository.py`
+- [X] T112 [US5] Persist optional readiness snapshots for case/job inspection in `src/adapters/persistence/job_repository.py`
 
 ### Service/Application
 
@@ -308,36 +308,36 @@
 
 ### Persistence
 
-- [ ] T122 Add missing-artifact reconciliation and cleanup helpers in `src/adapters/persistence/artifact_repository.py` and `src/adapters/persistence/artifact_store.py`
+- [X] T122 Add missing-artifact reconciliation and cleanup helpers in `src/adapters/persistence/artifact_repository.py` and `src/adapters/persistence/artifact_store.py`
 
 ### Service/Application
 
-- [ ] T123 Add cross-cutting error translation for desktop workflows in `src/services/case_workspace_service.py`
+- [X] T123 Add cross-cutting error translation for desktop workflows in `src/services/case_workspace_service.py`
 - [X] T124 Add privacy and sensitive-data minimization rules for previews, logs, and persisted metadata in `src/services/privacy_guard.py` and `src/services/case_workspace_service.py`
-- [ ] T125 Verify no shared logic was duplicated outside the service layer in `src/services/case_workspace_service.py`, `src/services/mapping_revision_service.py`, `src/services/case_mapping_policy.py`, and `src/services/stale_state_service.py`
+- [X] T125 Verify no shared logic was duplicated outside the service layer in `src/services/case_workspace_service.py`, `src/services/mapping_revision_service.py`, `src/services/case_mapping_policy.py`, and `src/services/stale_state_service.py`
 
 ### UI (Desktop)
 
-- [ ] T126 Add global and per-file error UX surfaces in `src/app/desktop/widgets/error_banner.py`, `src/app/desktop/widgets/case_workspace_panel.py`, and `src/app/desktop/window.py`
-- [ ] T127 Refine dark-theme styling and premium visual polish in `src/app/desktop/styles/dark_theme.qss` and `src/app/desktop/window.py`
+- [X] T126 Add global and per-file error UX surfaces in `src/app/desktop/widgets/error_banner.py`, `src/app/desktop/widgets/case_workspace_panel.py`, and `src/app/desktop/window.py`
+- [X] T127 Refine dark-theme styling and premium visual polish in `src/app/desktop/styles/dark_theme.qss` and `src/app/desktop/window.py`
 - [X] T128 Add a French UI copy inventory and centralized labels in `src/app/desktop/copy/fr.py`, `src/app/desktop/window.py`, and `src/app/desktop/widgets/`
-- [ ] T129 Verify the UI remains thin and event-driven with no mapping or stale-detection business logic in `src/app/desktop/presenters/workspace_presenter.py` and `src/app/desktop/widgets/`
+- [X] T129 Verify the UI remains thin and event-driven with no mapping or stale-detection business logic in `src/app/desktop/presenters/workspace_presenter.py` and `src/app/desktop/widgets/`
 
 ### Packaging
 
-- [ ] T130 Finalize PyInstaller configuration in `scripts/packaging/a4_desktop.spec`
-- [ ] T131 Include packaged `models/` assets and icon resources in `scripts/packaging/build_windows_portable.py` and `scripts/packaging/a4_desktop.spec`
-- [ ] T132 Validate portable relative path resolution and extracted-folder execution in `scripts/packaging/smoke_test_portable.py`
+- [X] T130 Finalize PyInstaller configuration in `scripts/packaging/a4_desktop.spec`
+- [X] T131 Include packaged `models/` assets and icon resources in `scripts/packaging/build_windows_portable.py` and `scripts/packaging/a4_desktop.spec`
+- [X] T132 Validate portable relative path resolution and extracted-folder execution in `scripts/packaging/smoke_test_portable.py`
 
 ### Tests
 
-- [ ] T133 [P] Add persistence integrity regression tests in `tests/unit/persistence/test_case_storage_integrity.py`
-- [ ] T134 [P] Add sensitive metadata and log-boundary tests in `tests/unit/services/test_privacy_guard.py`
-- [ ] T135 [P] Add French UI copy verification tests in `tests/ui/test_french_copy_labels.py`
-- [ ] T136 [P] Add end-to-end UI workflow smoke test in `tests/ui/test_desktop_workspace_smoke.py`
-- [ ] T137 [P] Add Windows portable packaging smoke test in `tests/packaging/test_windows_portable_smoke.py`
-- [ ] T138 Run quickstart validation scenarios in `specs/002-desktop-case-ui/quickstart.md`
-- [ ] T139 [P] Add lightweight performance validation for startup, case switching, and first progress update targets in `tests/packaging/test_desktop_performance_smoke.py`
+- [X] T133 [P] Add persistence integrity regression tests in `tests/unit/persistence/test_case_storage_integrity.py`
+- [X] T134 [P] Add sensitive metadata and log-boundary tests in `tests/unit/services/test_privacy_guard.py`
+- [X] T135 [P] Add French UI copy verification tests in `tests/ui/test_french_copy_labels.py`
+- [X] T136 [P] Add end-to-end UI workflow smoke test in `tests/ui/test_desktop_workspace_smoke.py`
+- [X] T137 [P] Add Windows portable packaging smoke test in `tests/packaging/test_windows_portable_smoke.py`
+- [X] T138 Run quickstart validation scenarios in `specs/002-desktop-case-ui/quickstart.md`
+- [X] T139 [P] Add lightweight performance validation for startup, case switching, and first progress update targets in `tests/packaging/test_desktop_performance_smoke.py`
 
 ---
 

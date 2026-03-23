@@ -76,6 +76,14 @@ class MappingRevisionService:
     def get_active_entries(self, case_id: str) -> tuple[RevisionMappingEntry, ...]:
         return tuple(item for item in self.get_entries(case_id) if item.state == "active")
 
+    def get_active_entries_with_revision(self, case_id: str) -> tuple[int | None, tuple[RevisionMappingEntry, ...]]:
+        latest = self._repository.get_latest(case_id)
+        if latest is None:
+            return None, ()
+        payload = json.loads(latest.entries_json)
+        entries = tuple(self._decode_entry(item) for item in payload)
+        return latest.revision_number, tuple(item for item in entries if item.state == "active")
+
     def latest_revision_number(self, case_id: str) -> int | None:
         latest = self._repository.get_latest(case_id)
         return latest.revision_number if latest else None

@@ -109,3 +109,13 @@ class ArtifactRepository:
             for record in self.list_by_case(case_id)
             if not Path(record.file_path).exists()
         }
+
+    def list_missing_records(self, case_id: str) -> tuple[ArtifactRecord, ...]:
+        return tuple(
+            record
+            for record in self.list_by_case(case_id)
+            if not Path(record.file_path).exists()
+        )
+
+    def list_tracked_file_paths(self, case_id: str) -> tuple[Path, ...]:
+        return tuple(Path(record.file_path) for record in self.list_by_case(case_id))

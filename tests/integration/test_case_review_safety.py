@@ -212,7 +212,7 @@ def test_review_failure_leaves_no_orphan_files(tmp_path: Path) -> None:
         database=database,
         artifact_repository=FailingArtifactRepository(database),
     )
-    with pytest.raises(RuntimeError, match="artifact write failed"):
+    with pytest.raises(ValueError, match="artifact write failed"):
         failing.remove_substitutions(workspace.case_id, document_id, (removable_id,))
 
     after_outputs = set(service._artifact_store.case_root(workspace.case_id, workspace.display_name).glob("outputs/*"))
@@ -257,7 +257,7 @@ def test_regeneration_failure_leaves_no_orphan_files(tmp_path: Path) -> None:
         database=database,
         artifact_repository=FailingArtifactRepository(database),
     )
-    with pytest.raises(RuntimeError, match="artifact write failed"):
+    with pytest.raises(ValueError, match="artifact write failed"):
         failing.regenerate_stale_output(workspace.case_id, stale_artifact.artifact_id)
 
     after_outputs = set(case_root.glob("outputs/*"))

@@ -3,6 +3,10 @@ from __future__ import annotations
 APP_TITLE = "A4 = Action Avocats Anonym App"
 
 DELETE_WHILE_RUNNING_MESSAGE = "La suppression du dossier est indisponible pendant un traitement en cours."
+WORKSPACE_RUNNING_MESSAGE = "Traitement en cours..."
+DEANON_RUNNING_MESSAGE = "Deanonymisation en cours..."
+ERROR_BANNER_TITLE = "Attention"
+EXPORT_READY_MESSAGE = "Export deanonymise pret."
 
 READINESS_READY_LABEL = "Pret"
 READINESS_READY_MESSAGE = "Le traitement local est disponible."

@@ -97,3 +97,10 @@ class JobRepository:
                 """
             ).fetchall()
         return {str(row["case_id"]) for row in rows}
+
+    def list_readiness_snapshots(self, case_id: str) -> tuple[str, ...]:
+        return tuple(
+            record.readiness_snapshot
+            for record in self.list_by_case(case_id)
+            if record.readiness_snapshot
+        )

@@ -79,8 +79,8 @@ class PastedDeanonymizationService:
             return fr.DEANON_CLASSIFICATION_NOTE
         return None
 
-    def _active_mapping_artifact(self, case_id: str) -> MappingArtifact:
-        active_entries = self._mapping_revision_service.get_active_entries(case_id)
+    @staticmethod
+    def _mapping_artifact_from_entries(active_entries: tuple) -> MappingArtifact:
         return MappingArtifact(
             schema_version="1.0",
             mapping_format="canonical-v1",
@@ -159,8 +159,8 @@ class PastedDeanonymizationService:
         if not input_text.strip():
             raise ValueError("Le texte anonymise a deanonymiser est requis.")
 
-        mapping_revision = self._mapping_revision_service.latest_revision_number(case_id)
-        mapping_artifact = self._active_mapping_artifact(case_id)
+        mapping_revision, active_entries = self._mapping_revision_service.get_active_entries_with_revision(case_id)
+        mapping_artifact = self._mapping_artifact_from_entries(active_entries)
         job = self._create_job(case_id=case_id, mapping_revision_used=mapping_revision)
         session_id = uuid4().hex
         input_path = self._artifact_store.deanonymization_input_path(case_id, case_record.display_name, session_id)
@@ -175,29 +175,32 @@ class PastedDeanonymizationService:
             adapter.save(result_path, result.deanonymized_text)
             match_count = self._match_count(input_text, mapping_artifact)
             result_state = self._result_state(input_text, match_count, mapping_artifact)
-            record = self._deanonymization_session_repository.create(
-                DeanonymizationSessionRecord(
-                    session_id=session_id,
-                    case_id=case_id,
-                    created_at=_utc_now(),
-                    mapping_revision_used=mapping_revision,
-                    input_text_path=str(input_path),
-                    result_text_path=str(result_path),
-                    input_preview_snippet=PrivacyGuard.preview_text(input_text),
-                    result_preview_snippet=PrivacyGuard.preview_text(result.deanonymized_text),
-                    match_count=match_count,
-                    session_status=result_state,
-                    exported_artifact_id=None,
+            with self._database.transaction() as connection:
+                record = self._deanonymization_session_repository.create(
+                    DeanonymizationSessionRecord(
+                        session_id=session_id,
+                        case_id=case_id,
+                        created_at=_utc_now(),
+                        mapping_revision_used=mapping_revision,
+                        input_text_path=str(input_path),
+                        result_text_path=str(result_path),
+                        input_preview_snippet=PrivacyGuard.preview_text(input_text),
+                        result_preview_snippet=PrivacyGuard.preview_text(result.deanonymized_text),
+                        match_count=match_count,
+                        session_status=result_state,
+                        exported_artifact_id=None,
+                    ),
+                    connection=connection,
                 )
-            )
-            self._job_repository.update(
-                replace(
-                    job,
-                    completed_at=_utc_now(),
-                    job_status="partial" if result_state == "partial" else "success",
-                    success_count=1,
+                self._job_repository.update(
+                    replace(
+                        job,
+                        completed_at=_utc_now(),
+                        job_status="partial" if result_state == "partial" else "success",
+                        success_count=1,
+                    ),
+                    connection=connection,
                 )
-            )
         except Exception as exc:
             if input_path.exists():
                 input_path.unlink()
