@@ -279,24 +279,24 @@
 
 ### Service/Application
 
-- [ ] T113 [US5] Implement readiness summary and detail DTO generation in `src/services/case_workspace_service.py`
-- [ ] T114 [US5] Implement blocked-action guardrails for anonymization and deanonymization in `src/services/case_workspace_service.py`
+- [X] T113 [US5] Implement readiness summary and detail DTO generation in `src/services/case_workspace_service.py`
+- [X] T114 [US5] Implement blocked-action guardrails for anonymization and deanonymization in `src/services/case_workspace_service.py`
 
 ### UI (Desktop)
 
-- [ ] T115 [US5] Build discreet readiness summary widget in `src/app/desktop/widgets/readiness_panel.py`
-- [ ] T116 [P] [US5] Build readiness details dialog in `src/app/desktop/widgets/readiness_details_dialog.py`
-- [ ] T117 [US5] Wire readiness refresh and action blocking through the presenter in `src/app/desktop/presenters/workspace_presenter.py` and `src/app/desktop/window.py`
+- [X] T115 [US5] Build discreet readiness summary widget in `src/app/desktop/widgets/readiness_panel.py`
+- [X] T116 [P] [US5] Build readiness details dialog in `src/app/desktop/widgets/readiness_details_dialog.py`
+- [X] T117 [US5] Wire readiness refresh and action blocking through the presenter in `src/app/desktop/presenters/workspace_presenter.py` and `src/app/desktop/window.py`
 
 ### Packaging
 
-- [ ] T118 [US5] Verify packaged readiness uses root-relative `models/` resolution in `scripts/packaging/smoke_test_portable.py` and `src/config/desktop_settings.py`
+- [X] T118 [US5] Verify packaged readiness uses root-relative `models/` resolution in `scripts/packaging/smoke_test_portable.py` and `src/config/desktop_settings.py`
 
 ### Tests
 
-- [ ] T119 [P] [US5] Add unit tests for readiness DTO mapping in `tests/unit/services/test_case_workspace_service_readiness.py`
-- [ ] T120 [P] [US5] Add UI tests for readiness summary and details mode in `tests/ui/test_readiness_panel.py`
-- [ ] T121 [US5] Add packaging-oriented readiness failure test for missing/corrupt models in `tests/packaging/test_portable_readiness_failures.py`
+- [X] T119 [P] [US5] Add unit tests for readiness DTO mapping in `tests/unit/services/test_case_workspace_service_readiness.py`
+- [X] T120 [P] [US5] Add UI tests for readiness summary and details mode in `tests/ui/test_readiness_panel.py`
+- [X] T121 [US5] Add packaging-oriented readiness failure test for missing/corrupt models in `tests/packaging/test_portable_readiness_failures.py`
 
 **Checkpoint**: All user stories are independently functional and aligned with the desktop workspace architecture.
 
@@ -313,14 +313,14 @@
 ### Service/Application
 
 - [ ] T123 Add cross-cutting error translation for desktop workflows in `src/services/case_workspace_service.py`
-- [ ] T124 Add privacy and sensitive-data minimization rules for previews, logs, and persisted metadata in `src/services/privacy_guard.py` and `src/services/case_workspace_service.py`
+- [X] T124 Add privacy and sensitive-data minimization rules for previews, logs, and persisted metadata in `src/services/privacy_guard.py` and `src/services/case_workspace_service.py`
 - [ ] T125 Verify no shared logic was duplicated outside the service layer in `src/services/case_workspace_service.py`, `src/services/mapping_revision_service.py`, `src/services/case_mapping_policy.py`, and `src/services/stale_state_service.py`
 
 ### UI (Desktop)
 
 - [ ] T126 Add global and per-file error UX surfaces in `src/app/desktop/widgets/error_banner.py`, `src/app/desktop/widgets/case_workspace_panel.py`, and `src/app/desktop/window.py`
 - [ ] T127 Refine dark-theme styling and premium visual polish in `src/app/desktop/styles/dark_theme.qss` and `src/app/desktop/window.py`
-- [ ] T128 Add a French UI copy inventory and centralized labels in `src/app/desktop/copy/fr.py`, `src/app/desktop/window.py`, and `src/app/desktop/widgets/`
+- [X] T128 Add a French UI copy inventory and centralized labels in `src/app/desktop/copy/fr.py`, `src/app/desktop/window.py`, and `src/app/desktop/widgets/`
 - [ ] T129 Verify the UI remains thin and event-driven with no mapping or stale-detection business logic in `src/app/desktop/presenters/workspace_presenter.py` and `src/app/desktop/widgets/`
 
 ### Packaging

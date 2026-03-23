@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from src.app.desktop.copy import fr
 from src.adapters.documents.registry import DocumentAdapterRegistry
 from src.adapters.documents.txt_adapter import TxtDocumentAdapter
 from src.adapters.mappings.canonical_mapping_adapter import CanonicalMappingAdapter
@@ -23,6 +24,7 @@ from src.app.ui_contracts.case_workspace_view_models import (
     DeanonymizationExportViewModel,
     DeanonymizationSessionViewModel,
     DocumentItemViewModel,
+    ReadinessDetailsViewModel,
     ReadinessSummaryViewModel,
     ReviewUpdateViewModel,
     StaleArtifactRegenerationViewModel,
@@ -35,6 +37,7 @@ from src.services.case_mapping_policy import CaseMappingPolicy
 from src.services.deanonymization_service import DeanonymizationService
 from src.services.mapping_revision_service import MappingRevisionService
 from src.services.pasted_deanonymization_service import PastedDeanonymizationService
+from src.services.readiness_presentation_service import ReadinessPresentationService
 from src.services.readiness_service import ReadinessService
 from src.services.stale_output_regeneration_service import StaleOutputRegenerationService
 from src.services.stale_state_service import StaleStateService
@@ -46,7 +49,7 @@ class CaseDeletionBlockedError(RuntimeError):
 
 
 class CaseWorkspaceService:
-    DELETE_WHILE_RUNNING_MESSAGE = "Case deletion is unavailable while processing is in progress."
+    DELETE_WHILE_RUNNING_MESSAGE = fr.DELETE_WHILE_RUNNING_MESSAGE
 
     def __init__(
         self,
@@ -71,6 +74,7 @@ class CaseWorkspaceService:
         substitution_review_service: SubstitutionReviewService | None = None,
         stale_output_regeneration_service: StaleOutputRegenerationService | None = None,
         pasted_deanonymization_service: PastedDeanonymizationService | None = None,
+        readiness_presentation_service: ReadinessPresentationService | None = None,
     ) -> None:
         self._database = database or MetadataDatabase()
         self._database.bootstrap()
@@ -95,6 +99,9 @@ class CaseWorkspaceService:
             document_registry=self._document_registry,
             mapping_adapter=self._mapping_adapter,
             readiness_service=self._readiness_service,
+        )
+        self._readiness_presentation_service = readiness_presentation_service or ReadinessPresentationService(
+            self._readiness_service
         )
         self._case_mapping_policy = case_mapping_policy or CaseMappingPolicy()
         self._mapping_revision_service = mapping_revision_service or MappingRevisionService(
@@ -143,10 +150,12 @@ class CaseWorkspaceService:
             case_repository=self._case_repository,
             artifact_repository=self._artifact_repository,
             deanonymization_session_repository=self._deanonymization_session_repository,
+            job_repository=self._job_repository,
             artifact_store=self._artifact_store,
             document_registry=self._document_registry,
             mapping_revision_service=self._mapping_revision_service,
             deanonymization_service=self._deanonymization_service,
+            readiness_service=self._readiness_service,
         )
 
     def _delete_availability(self, case_id: str, *, running_case_ids: set[str] | None = None) -> tuple[bool, str | None]:
@@ -169,19 +178,7 @@ class CaseWorkspaceService:
         )
 
     def _readiness_summary(self) -> ReadinessSummaryViewModel:
-        report = self._readiness_service.get_readiness_report()
-        unavailable = [item.engine_id for item in report if item.availability_status == "unavailable"]
-        if unavailable:
-            return ReadinessSummaryViewModel(
-                state="blocked",
-                label="Bloque",
-                details=tuple(unavailable),
-            )
-        return ReadinessSummaryViewModel(
-            state="ready",
-            label="Pret",
-            details=tuple(item.engine_id for item in report),
-        )
+        return self._readiness_presentation_service.summary()
 
     def _to_case_list_item(self, record, *, running_case_ids: set[str] | None = None) -> CaseListItemViewModel:
         delete_available, delete_unavailable_reason = self._delete_availability(
@@ -346,6 +343,9 @@ class CaseWorkspaceService:
     def load_workspace(self) -> WorkspaceLoadViewModel:
         return self._build_workspace_load()
 
+    def get_readiness_details(self) -> ReadinessDetailsViewModel:
+        return self._readiness_presentation_service.details()
+
     def create_case(self, display_name: str) -> CaseWorkspaceViewModel:
         record = self._case_repository.create(display_name)
         self._artifact_store.ensure_case_dirs(record.case_id, record.display_name)
@@ -370,6 +370,7 @@ class CaseWorkspaceService:
         case_record = self._case_repository.get(case_id)
         if case_record is None:
             raise ValueError(f"Unknown case '{case_id}'")
+        self._readiness_presentation_service.assert_operation_allowed("anonymization")
         batch_result = self._batch_service.run_case_anonymization(case_record, txt_file_paths)
         workspace = self._workspace_with_synced_status(case_id)
         return BatchRunViewModel(
@@ -432,6 +433,7 @@ class CaseWorkspaceService:
         )
 
     def deanonymize_pasted_text(self, case_id: str, input_text: str) -> DeanonymizationSessionViewModel:
+        self._readiness_presentation_service.assert_operation_allowed("deanonymization")
         return self._pasted_deanonymization_service.deanonymize(case_id=case_id, input_text=input_text)
 
     def export_deanonymized_result(

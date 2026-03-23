@@ -7,7 +7,33 @@ from dataclasses import dataclass, field
 class ReadinessSummaryViewModel:
     state: str
     label: str
+    message: str | None = None
     details: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ReadinessCheckItemViewModel:
+    check_name: str
+    status: str
+    severity: str
+    message: str
+    remediation: str | None = None
+
+
+@dataclass(frozen=True)
+class ReadinessBackendViewModel:
+    engine_id: str
+    display_name: str
+    availability_status: str
+    checks: tuple[ReadinessCheckItemViewModel, ...] = ()
+
+
+@dataclass(frozen=True)
+class ReadinessDetailsViewModel:
+    state: str
+    label: str
+    message: str | None = None
+    backends: tuple[ReadinessBackendViewModel, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -141,6 +167,7 @@ class DeanonymizationSessionViewModel:
     result_state: str
     mapping_revision: int | None
     status_message: str
+    classification_note: str | None = None
     exported_artifact_id: str | None = None
     exported_path: str | None = None
 

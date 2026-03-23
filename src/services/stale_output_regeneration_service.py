@@ -13,17 +13,12 @@ from src.adapters.persistence.document_repository import DocumentRepository
 from src.adapters.persistence.records import ArtifactRecord
 from src.services.mapping_revision_service import MappingRevisionService
 from src.services.mapping_rewrite_support import rewrite_artifact_for_removed_entries
+from src.services.privacy_guard import PrivacyGuard
 from src.services.stale_state_service import StaleStateService
 
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
-
-
-def _snippet(text: str, *, limit: int = 80) -> str:
-    compact = " ".join(text.split())
-    return compact[:limit]
-
 
 class StaleOutputRegenerationService:
     def __init__(
@@ -125,7 +120,7 @@ class StaleOutputRegenerationService:
                         artifact_status="current",
                         stale_reason=None,
                         supersedes_artifact_id=artifact.artifact_id,
-                        preview_snippet=_snippet(rewritten_text),
+                        preview_snippet=PrivacyGuard.preview_text(rewritten_text),
                         job_id=None,
                         mapping_path=str(mapping_path),
                         content_sha256=self._artifact_store.file_sha256(output_path),

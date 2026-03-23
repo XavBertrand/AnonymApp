@@ -2,31 +2,31 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from dataclasses import replace
 from pathlib import Path
 import re
+import shutil
 from uuid import uuid4
 
+from src.app.desktop.copy import fr
 from src.adapters.documents.registry import DocumentAdapterRegistry
 from src.adapters.persistence.artifact_repository import ArtifactRepository
 from src.adapters.persistence.artifact_store import ArtifactStore
 from src.adapters.persistence.case_repository import CaseRepository
 from src.adapters.persistence.database import MetadataDatabase
 from src.adapters.persistence.deanonymization_session_repository import DeanonymizationSessionRepository
-from src.adapters.persistence.records import ArtifactRecord, DeanonymizationSessionRecord
+from src.adapters.persistence.job_repository import JobRepository
+from src.adapters.persistence.records import ArtifactRecord, DeanonymizationSessionRecord, JobRecord
 from src.app.ui_contracts.case_workspace_view_models import DeanonymizationSessionViewModel
 from src.models.mapping_artifact import MappingArtifact, MappingEntry, MappingOrigin
 from src.services.deanonymization_service import DeanonymizationService
 from src.services.mapping_revision_service import MappingRevisionService
+from src.services.privacy_guard import PrivacyGuard
+from src.services.readiness_service import ReadinessService
 
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
-
-
-def _snippet(text: str, *, limit: int = 80) -> str:
-    compact = " ".join(text.split())
-    return compact[:limit]
-
 
 @dataclass(frozen=True)
 class DeanonymizationExportResult:
@@ -45,29 +45,39 @@ class PastedDeanonymizationService:
         case_repository: CaseRepository,
         artifact_repository: ArtifactRepository,
         deanonymization_session_repository: DeanonymizationSessionRepository,
+        job_repository: JobRepository,
         artifact_store: ArtifactStore,
         document_registry: DocumentAdapterRegistry,
         mapping_revision_service: MappingRevisionService,
         deanonymization_service: DeanonymizationService,
+        readiness_service: ReadinessService,
     ) -> None:
         self._database = database
         self._case_repository = case_repository
         self._artifact_repository = artifact_repository
         self._deanonymization_session_repository = deanonymization_session_repository
+        self._job_repository = job_repository
         self._artifact_store = artifact_store
         self._document_registry = document_registry
         self._mapping_revision_service = mapping_revision_service
         self._deanonymization_service = deanonymization_service
+        self._readiness_service = readiness_service
 
     @staticmethod
     def _result_message(result_state: str, match_count: int) -> str:
         if result_state == "matched":
-            return f"Deanonymisation terminee: {match_count} correspondance(s) restauree(s)."
+            return fr.DEANON_MATCHED_MESSAGE.format(match_count=match_count)
         if result_state == "partial":
-            return f"Deanonymisation partielle: {match_count} correspondance(s) restauree(s), certaines substitutions restent inconnues."
+            return fr.DEANON_PARTIAL_MESSAGE.format(match_count=match_count)
         if result_state == "no_match":
-            return "Aucune correspondance connue n'a ete appliquee."
-        return "La deanonymisation a echoue."
+            return fr.DEANON_NO_MATCH_MESSAGE
+        return fr.DEANON_FAILURE_MESSAGE
+
+    @staticmethod
+    def _classification_note(result_state: str) -> str | None:
+        if result_state in {"partial", "no_match"}:
+            return fr.DEANON_CLASSIFICATION_NOTE
+        return None
 
     def _active_mapping_artifact(self, case_id: str) -> MappingArtifact:
         active_entries = self._mapping_revision_service.get_active_entries(case_id)
@@ -87,7 +97,11 @@ class PastedDeanonymizationService:
         )
 
     def _match_count(self, input_text: str, mapping_artifact: MappingArtifact) -> int:
-        return sum(input_text.count(entry.placeholder) for entry in mapping_artifact.entries if entry.placeholder)
+        placeholders = sorted({entry.placeholder for entry in mapping_artifact.entries if entry.placeholder}, key=len, reverse=True)
+        if not placeholders:
+            return 0
+        pattern = re.compile("|".join(re.escape(item) for item in placeholders))
+        return sum(1 for _ in pattern.finditer(input_text))
 
     def _result_state(self, input_text: str, match_count: int, mapping_artifact: MappingArtifact) -> str:
         if match_count == 0:
@@ -115,8 +129,27 @@ class PastedDeanonymizationService:
             result_state=record.session_status,
             mapping_revision=record.mapping_revision_used,
             status_message=PastedDeanonymizationService._result_message(record.session_status, record.match_count),
+            classification_note=PastedDeanonymizationService._classification_note(record.session_status),
             exported_artifact_id=record.exported_artifact_id,
             exported_path=exported_path,
+        )
+
+    def _create_job(self, *, case_id: str, mapping_revision_used: int | None) -> JobRecord:
+        return self._job_repository.create(
+            JobRecord(
+                job_id=uuid4().hex,
+                case_id=case_id,
+                job_type="pasted_deanonymization",
+                started_at=_utc_now(),
+                completed_at=None,
+                job_status="running",
+                mapping_revision_used=mapping_revision_used,
+                item_count=1,
+                success_count=0,
+                failure_count=0,
+                error_summary=None,
+                readiness_snapshot=PrivacyGuard.readiness_snapshot(self._readiness_service.get_readiness_report()),
+            )
         )
 
     def deanonymize(self, *, case_id: str, input_text: str) -> DeanonymizationSessionViewModel:
@@ -128,6 +161,7 @@ class PastedDeanonymizationService:
 
         mapping_revision = self._mapping_revision_service.latest_revision_number(case_id)
         mapping_artifact = self._active_mapping_artifact(case_id)
+        job = self._create_job(case_id=case_id, mapping_revision_used=mapping_revision)
         session_id = uuid4().hex
         input_path = self._artifact_store.deanonymization_input_path(case_id, case_record.display_name, session_id)
         result_path = self._artifact_store.deanonymization_result_path(case_id, case_record.display_name, session_id)
@@ -149,18 +183,35 @@ class PastedDeanonymizationService:
                     mapping_revision_used=mapping_revision,
                     input_text_path=str(input_path),
                     result_text_path=str(result_path),
-                    input_preview_snippet=_snippet(input_text),
-                    result_preview_snippet=_snippet(result.deanonymized_text),
+                    input_preview_snippet=PrivacyGuard.preview_text(input_text),
+                    result_preview_snippet=PrivacyGuard.preview_text(result.deanonymized_text),
                     match_count=match_count,
                     session_status=result_state,
                     exported_artifact_id=None,
                 )
             )
-        except Exception:
+            self._job_repository.update(
+                replace(
+                    job,
+                    completed_at=_utc_now(),
+                    job_status="partial" if result_state == "partial" else "success",
+                    success_count=1,
+                )
+            )
+        except Exception as exc:
             if input_path.exists():
                 input_path.unlink()
             if result_path.exists():
                 result_path.unlink()
+            self._job_repository.update(
+                replace(
+                    job,
+                    completed_at=_utc_now(),
+                    job_status="failed",
+                    failure_count=1,
+                    error_summary=str(exc),
+                )
+            )
             raise
         return self._session_view_model(
             record,
@@ -183,13 +234,20 @@ class PastedDeanonymizationService:
         result_path = Path(session.result_text_path)
         if not result_path.exists():
             raise ValueError("La sortie deanonymisee est introuvable et ne peut pas etre exportee.")
-        output_path = destination or self._artifact_store.deanonymized_export_path(case_id, case_record.display_name, session_id)
+        output_path = destination or self._artifact_store.deanonymized_export_path(case_id, case_record.display_name, session_id, uuid4().hex)
+        if output_path.exists():
+            raise ValueError("Le fichier d'export cible existe deja. Choisissez un nouveau chemin.")
+        temp_output_path = output_path.with_name(f".{output_path.name}.{uuid4().hex}.tmp")
         adapter = self._document_registry.get("txt")
         result_text = result_path.read_text(encoding="utf-8")
         input_text = Path(session.input_text_path).read_text(encoding="utf-8") if Path(session.input_text_path).exists() else ""
+        final_path_created = False
+        previous_export = self._artifact_repository.get(session.exported_artifact_id) if session.exported_artifact_id is not None else None
         try:
-            adapter.save(output_path, result_text)
+            adapter.save(temp_output_path, result_text)
             with self._database.transaction() as connection:
+                shutil.move(str(temp_output_path), str(output_path))
+                final_path_created = True
                 artifact = self._artifact_repository.create(
                     ArtifactRecord(
                         artifact_id=uuid4().hex,
@@ -203,20 +261,30 @@ class PastedDeanonymizationService:
                         artifact_status="current",
                         stale_reason=None,
                         supersedes_artifact_id=session.exported_artifact_id,
-                        preview_snippet=_snippet(result_text),
+                        preview_snippet=PrivacyGuard.preview_text(result_text),
                         job_id=None,
                         mapping_path=None,
                         content_sha256=self._artifact_store.file_sha256(output_path),
                     ),
                     connection=connection,
                 )
+                if session.exported_artifact_id is not None:
+                    self._artifact_repository.update_state(
+                        artifact_id=session.exported_artifact_id,
+                        artifact_status="superseded",
+                        stale_reason=f"Remplace par l'export {artifact.artifact_id}",
+                        supersedes_artifact_id=previous_export.supersedes_artifact_id if previous_export is not None else None,
+                        connection=connection,
+                    )
                 self._deanonymization_session_repository.update_exported_artifact(
                     session_id=session_id,
                     exported_artifact_id=artifact.artifact_id,
                     connection=connection,
                 )
         except Exception:
-            if output_path.exists():
+            if temp_output_path.exists():
+                temp_output_path.unlink()
+            if final_path_created and output_path.exists():
                 output_path.unlink()
             raise
 

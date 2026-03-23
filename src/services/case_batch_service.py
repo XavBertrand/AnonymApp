@@ -16,17 +16,12 @@ from src.adapters.persistence.job_repository import JobRepository
 from src.adapters.persistence.records import ArtifactRecord, CaseRecord, JobRecord
 from src.services.anonymization_service import AnonymizationService
 from src.services.mapping_revision_service import MappingRevisionService
+from src.services.privacy_guard import PrivacyGuard
 from src.services.readiness_service import ReadinessService
 
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
-
-
-def _snippet(text: str, *, limit: int = 80) -> str:
-    compact = " ".join(text.split())
-    return compact[:limit]
-
 
 @dataclass(frozen=True)
 class BatchProcessedItem:
@@ -87,15 +82,7 @@ class CaseBatchService:
             success_count=0,
             failure_count=0,
             error_summary=None,
-            readiness_snapshot=str(
-                [
-                    {
-                        "engine_id": item.engine_id,
-                        "availability_status": item.availability_status,
-                    }
-                    for item in self._readiness_service.get_readiness_report()
-                ]
-            ),
+            readiness_snapshot=PrivacyGuard.readiness_snapshot(self._readiness_service.get_readiness_report()),
         )
         return self._job_repository.create(record)
 
@@ -133,7 +120,7 @@ class CaseBatchService:
                     source_path=source_path,
                     imported_copy_path=imported_copy,
                     source_fingerprint=source_fingerprint,
-                    preview_snippet=_snippet(preview_text),
+                    preview_snippet=PrivacyGuard.preview_text(preview_text),
                     connection=connection,
                 )
                 merge_result, revision_record = self._mapping_revision_service.merge_incoming_artifact(
@@ -160,7 +147,7 @@ class CaseBatchService:
                         artifact_status="current",
                         stale_reason=None,
                         supersedes_artifact_id=None,
-                        preview_snippet=_snippet(merge_result.normalized_text),
+                        preview_snippet=PrivacyGuard.preview_text(merge_result.normalized_text),
                         job_id=job.job_id,
                         mapping_path=str(result.mapping_path),
                         content_sha256=self._artifact_store.file_sha256(result.output_path),

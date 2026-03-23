@@ -7,6 +7,7 @@ from src.app.ui_contracts.case_workspace_view_models import (
     CaseWorkspaceViewModel,
     DeanonymizationExportViewModel,
     DeanonymizationSessionViewModel,
+    ReadinessDetailsViewModel,
     ReviewUpdateViewModel,
     StaleArtifactRegenerationViewModel,
     SubstitutionReviewViewModel,
@@ -21,6 +22,9 @@ class WorkspacePresenter:
 
     def load_workspace(self) -> WorkspaceLoadViewModel:
         return self._service.load_workspace()
+
+    def get_readiness_details(self) -> ReadinessDetailsViewModel:
+        return self._service.get_readiness_details()
 
     def create_case(self, display_name: str) -> CaseWorkspaceViewModel:
         return self._service.create_case(display_name)

@@ -172,6 +172,7 @@ def build_workspace_service(
     mapping_adapter = service_overrides.pop("mapping_adapter", CanonicalMappingAdapter())
     artifact_store = ArtifactStore(tmp_path / "cases", tmp_path / "exports")
     database = service_overrides.pop("database", MetadataDatabase(tmp_path / "desktop.sqlite3"))
+    readiness_service = service_overrides.pop("readiness_service", FakeReadinessService())
     document_registry = document_registry or DocumentAdapterRegistry([TxtDocumentAdapter()])
     anonymization_service = anonymization_service or FakeAnonymizationService(
         mapping_adapter=mapping_adapter,
@@ -185,7 +186,7 @@ def build_workspace_service(
         mapping_adapter=mapping_adapter,
         anonymization_service=anonymization_service,
         deanonymization_service=deanonymization_service,
-        readiness_service=FakeReadinessService(),
+        readiness_service=readiness_service,
         document_registry=document_registry,
         **service_overrides,
     )

@@ -68,10 +68,10 @@ class ArtifactStore:
         dirs = self.ensure_case_dirs(case_id, display_name)
         return dirs["sessions"] / f"pasted-{session_id[:8]}.result.txt"
 
-    def deanonymized_export_path(self, case_id: str, display_name: str, session_id: str) -> Path:
+    def deanonymized_export_path(self, case_id: str, display_name: str, session_id: str, export_id: str) -> Path:
         export_root = self._exports_root / f"{_slugify(display_name)}-{case_id[:8]}"
         export_root.mkdir(parents=True, exist_ok=True)
-        return export_root / f"deanonymized-{session_id[:8]}.txt"
+        return export_root / f"deanonymized-{session_id[:8]}-{export_id[:8]}.txt"
 
     @staticmethod
     def fingerprint(source_path: Path) -> str:

@@ -82,3 +82,19 @@ def test_delete_case_flow_is_blocked_immediately_when_local_batch_is_pending(tmp
 
     assert window.last_error == CaseWorkspaceService.DELETE_WHILE_RUNNING_MESSAGE
     assert dialog.last_blocked_message == CaseWorkspaceService.DELETE_WHILE_RUNNING_MESSAGE
+
+
+def test_delete_case_flow_is_blocked_immediately_when_local_deanonymization_is_pending(tmp_path) -> None:
+    service = build_workspace_service(tmp_path)
+    workspace = service.create_case("Dossier Pending Deanon")
+    dialog = DeleteCaseDialog()
+    presenter = WorkspacePresenter(service)
+    window = DesktopMainWindow(presenter, delete_case_dialog=dialog)
+    window.load()
+    window.current_case_id = workspace.case_id
+    window.pending_deanonymization = "pending-future"
+
+    window.delete_case(workspace.case_id)
+
+    assert window.last_error == CaseWorkspaceService.DELETE_WHILE_RUNNING_MESSAGE
+    assert dialog.last_blocked_message == CaseWorkspaceService.DELETE_WHILE_RUNNING_MESSAGE
