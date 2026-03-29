@@ -4,7 +4,15 @@ from pathlib import Path
 
 from src.app.desktop.copy import fr
 from src.app.desktop.presenters.workspace_presenter import WorkspacePresenter
-from src.app.desktop.qt_compat import QMainWindow, dispatch_to_main_thread, ensure_application
+from src.app.desktop.qt_compat import (
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QVBoxLayout,
+    QWidget,
+    dispatch_to_main_thread,
+    ensure_application,
+)
 from src.app.desktop.workers.workspace_worker import WorkspaceWorker
 from src.app.desktop.widgets.case_history_panel import CaseHistoryPanel
 from src.app.desktop.widgets.mapping_review_panel import MappingReviewPanel
@@ -44,6 +52,7 @@ class DesktopMainWindow(QMainWindow):
         self.pending_deanonymization = None
         self.last_error: str | None = None
         self.setWindowTitle(fr.APP_TITLE)
+        self._build_layout()
         self._apply_theme()
         self.case_history_panel.bind_actions(
             create_case=self.create_case,
@@ -61,6 +70,45 @@ class DesktopMainWindow(QMainWindow):
             export_result=self.export_deanonymized_result,
         )
         self.result_preview_panel.bind_regeneration_action(self.regenerate_stale_output)
+        self._refresh_window_status()
+
+    def _build_layout(self) -> None:
+        container = QWidget()
+        layout = QVBoxLayout()
+        self._header_label = QLabel(fr.APP_TITLE)
+        self._error_label = QLabel("Erreur: aucune")
+        self._error_label.setWordWrap(True)
+        content = QWidget()
+        content_layout = QHBoxLayout()
+        left_column = QWidget()
+        left_layout = QVBoxLayout()
+        left_layout.addWidget(self.readiness_panel)
+        left_layout.addWidget(self.case_history_panel)
+        left_column.setLayout(left_layout)
+        center_column = QWidget()
+        center_layout = QVBoxLayout()
+        center_layout.addWidget(self.case_workspace_panel)
+        center_layout.addWidget(self.result_preview_panel)
+        center_column.setLayout(center_layout)
+        right_column = QWidget()
+        right_layout = QVBoxLayout()
+        right_layout.addWidget(self.mapping_review_panel)
+        right_layout.addWidget(self.deanonymization_panel)
+        right_column.setLayout(right_layout)
+        content_layout.addWidget(left_column)
+        content_layout.addWidget(center_column)
+        content_layout.addWidget(right_column)
+        content.setLayout(content_layout)
+        layout.addWidget(self._header_label)
+        layout.addWidget(self._error_label)
+        layout.addWidget(content)
+        container.setLayout(layout)
+        self.setCentralWidget(container)
+        if hasattr(self, "resize"):
+            self.resize(1400, 900)
+
+    def _refresh_window_status(self) -> None:
+        self._error_label.setText(f"Erreur: {self.last_error or 'aucune'}")
 
     def _apply_workspace_load(self, model) -> None:
         self.error_banner.clear()
@@ -70,16 +118,20 @@ class DesktopMainWindow(QMainWindow):
             self.current_case_id = None
             self.case_workspace_panel.set_workspace(None)
             self.case_workspace_panel.set_status_message(None)
+            self.mapping_review_panel.set_documents(())
             self.mapping_review_panel.set_review(None)
             self.deanonymization_panel.set_session(None)
             self.result_preview_panel.set_artifacts(())
+            self._refresh_window_status()
             return
         self.current_case_id = model.selected_case.case_id
         self.case_workspace_panel.set_workspace(model.selected_case)
         self.case_workspace_panel.set_status_message(None)
+        self.mapping_review_panel.set_documents(model.selected_case.documents)
         self.mapping_review_panel.set_review(None)
         self.deanonymization_panel.set_session(None)
         self.result_preview_panel.set_artifacts(model.selected_case.artifacts)
+        self._refresh_window_status()
 
     def _apply_theme(self) -> None:
         theme_path = Path(__file__).resolve().parent / "styles" / "dark_theme.qss"
@@ -94,6 +146,7 @@ class DesktopMainWindow(QMainWindow):
         except Exception as exc:
             self.last_error = str(exc)
             self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
+            self._refresh_window_status()
 
     def create_case(self, display_name: str) -> None:
         try:
@@ -102,6 +155,7 @@ class DesktopMainWindow(QMainWindow):
         except Exception as exc:
             self.last_error = str(exc)
             self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
+            self._refresh_window_status()
 
     def open_case(self, case_id: str) -> None:
         try:
@@ -110,6 +164,7 @@ class DesktopMainWindow(QMainWindow):
         except Exception as exc:
             self.last_error = str(exc)
             self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
+            self._refresh_window_status()
 
     def delete_case(self, case_id: str) -> None:
         item = next((case for case in self.case_history_panel.items if case.case_id == case_id), None)
@@ -119,12 +174,14 @@ class DesktopMainWindow(QMainWindow):
             self.last_error = CaseWorkspaceService.DELETE_WHILE_RUNNING_MESSAGE
             self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
             self.delete_case_dialog.show_blocked(self.last_error)
+            self._refresh_window_status()
             return
         if not item.delete_available:
             self.last_error = item.delete_unavailable_reason
             if self.last_error is not None:
                 self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
                 self.delete_case_dialog.show_blocked(self.last_error)
+                self._refresh_window_status()
             return
         if not self.delete_case_dialog.request_confirmation(item.display_name):
             return
@@ -134,6 +191,7 @@ class DesktopMainWindow(QMainWindow):
             self.last_error = str(exc)
             self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
             self.delete_case_dialog.show_blocked(self.last_error)
+            self._refresh_window_status()
             return
         self._apply_workspace_load(model)
 
@@ -146,12 +204,15 @@ class DesktopMainWindow(QMainWindow):
         self.mapping_review_panel.set_review(None)
         self.result_preview_panel.set_batch_result(batch)
         self.result_preview_panel.set_artifacts(batch.workspace.artifacts)
+        self.mapping_review_panel.set_documents(batch.workspace.documents)
+        self._refresh_window_status()
 
     def _apply_batch_error(self, error: Exception) -> None:
         self.pending_batch = None
         self.last_error = str(error)
         self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
         self.case_workspace_panel.set_status_message(None)
+        self._refresh_window_status()
 
     def run_case_anonymization(self, txt_file_paths: list[Path]) -> None:
         if self.current_case_id is None:
@@ -159,6 +220,7 @@ class DesktopMainWindow(QMainWindow):
         self.last_error = None
         self.error_banner.clear()
         self.case_workspace_panel.set_status_message(fr.WORKSPACE_RUNNING_MESSAGE)
+        self._refresh_window_status()
         self.pending_batch = self.worker.submit(
             self.presenter.run_case_anonymization,
             self.current_case_id,
@@ -173,12 +235,14 @@ class DesktopMainWindow(QMainWindow):
         self.error_banner.clear()
         self.case_workspace_panel.set_status_message(None)
         self.deanonymization_panel.set_session(session)
+        self._refresh_window_status()
 
     def _apply_deanonymization_error(self, error: Exception) -> None:
         self.pending_deanonymization = None
         self.last_error = str(error)
         self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
         self.case_workspace_panel.set_status_message(None)
+        self._refresh_window_status()
 
     def load_substitution_review(self, document_id: str) -> None:
         if self.current_case_id is None:
@@ -186,9 +250,11 @@ class DesktopMainWindow(QMainWindow):
         try:
             review = self.presenter.load_substitution_review(self.current_case_id, document_id)
             self.mapping_review_panel.set_review(review)
+            self._refresh_window_status()
         except Exception as exc:
             self.last_error = str(exc)
             self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
+            self._refresh_window_status()
 
     def remove_substitutions(self, mapping_entry_ids: tuple[str, ...]) -> None:
         if self.current_case_id is None:
@@ -205,9 +271,12 @@ class DesktopMainWindow(QMainWindow):
             self._apply_workspace_load(self.presenter.load_workspace())
             self.mapping_review_panel.set_review_update(update)
             self.result_preview_panel.set_artifacts(update.workspace.artifacts)
+            self.mapping_review_panel.set_documents(update.workspace.documents)
+            self._refresh_window_status()
         except Exception as exc:
             self.last_error = str(exc)
             self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
+            self._refresh_window_status()
 
     def regenerate_stale_output(self, artifact_id: str) -> None:
         if self.current_case_id is None:
@@ -219,9 +288,12 @@ class DesktopMainWindow(QMainWindow):
             self.result_preview_panel.set_artifacts(result.workspace.artifacts)
             if result.review is not None:
                 self.mapping_review_panel.set_review(result.review)
+            self.mapping_review_panel.set_documents(result.workspace.documents)
+            self._refresh_window_status()
         except Exception as exc:
             self.last_error = str(exc)
             self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
+            self._refresh_window_status()
 
     def deanonymize_pasted_text(self, input_text: str) -> None:
         if self.current_case_id is None:
@@ -229,6 +301,7 @@ class DesktopMainWindow(QMainWindow):
         self.last_error = None
         self.error_banner.clear()
         self.case_workspace_panel.set_status_message(fr.DEANON_RUNNING_MESSAGE)
+        self._refresh_window_status()
         self.pending_deanonymization = self.worker.submit(
             self.presenter.deanonymize_pasted_text,
             self.current_case_id,
@@ -253,9 +326,12 @@ class DesktopMainWindow(QMainWindow):
             self.case_workspace_panel.set_status_message(None)
             self.result_preview_panel.set_artifacts(result.workspace.artifacts)
             self.deanonymization_panel.set_export_result(result)
+            self.mapping_review_panel.set_documents(result.workspace.documents)
+            self._refresh_window_status()
         except Exception as exc:
             self.last_error = str(exc)
             self.error_banner.show_error(self.last_error, title=fr.ERROR_BANNER_TITLE)
+            self._refresh_window_status()
 
     def show_readiness_details(self) -> None:
         self.readiness_details_dialog.show_details(self.presenter.get_readiness_details())

@@ -100,6 +100,22 @@ The following automated scenarios now encode the MVP quickstart for repeatable h
 
 Recommended hands-on testing order:
 
-1. Run the automated smoke slices above.
-2. Launch the desktop app in development mode and repeat the same workflow with real local model assets.
-3. Build the portable bundle and repeat the smoke workflow from an extracted folder on Windows 10/11.
+1. From WSL/Linux, prepare a Windows-ready staged folder:
+   - `python scripts/packaging/prepare_windows_test_release.py`
+2. Copy `out/windows_test_release/` to a Windows 10/11 machine.
+3. On Windows, open PowerShell in the copied folder and run:
+   - `powershell -ExecutionPolicy Bypass -File scripts/packaging/build_windows.ps1`
+4. Launch the built portable bundle from `dist/a4_desktop_portable`.
+5. Repeat the desktop smoke workflow there with real local model assets.
+
+Validation helpers for the prep/build path:
+
+- `scripts/packaging/prepare_windows_test_release.py`
+  - runs preflight checks
+  - runs the targeted desktop/package smoke slices
+  - stages `out/windows_test_release/`
+  - writes `build_info.json`, `commit.txt`, and `next_steps_windows.txt`
+- `scripts/packaging/verify_staged_release.py`
+  - validates the staged layout
+  - confirms `models/` is populated
+  - confirms the folder is ready to copy to Windows
