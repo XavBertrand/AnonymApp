@@ -30,6 +30,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "gliner" },
+    { name = "huggingface-hub" },
     { name = "pyinstaller" },
     { name = "pyside6" },
     { name = "pytest" },
@@ -50,6 +51,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "gliner", specifier = ">=0.2.10" },
+    { name = "huggingface-hub", specifier = ">=1.6.0" },
     { name = "pyinstaller", specifier = ">=6.11.0" },
     { name = "pyside6", specifier = ">=6.8.0" },
     { name = "pytest", specifier = ">=9.0.2" },

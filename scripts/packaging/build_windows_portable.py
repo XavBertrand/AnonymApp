@@ -27,6 +27,18 @@ ICON_CANDIDATES = (
     Path("src/app/desktop/assets/a4_desktop.ico"),
     Path("src/app/desktop/assets/a4_desktop.svg"),
 )
+BACKEND_SCRIPT_RELATIVES = (
+    Path("tmp/anonymizer.py"),
+    Path("tmp/transformer_anonymizer.py"),
+)
+PYINSTALLER_HIDDEN_IMPORTS = (
+    "transformers",
+    "torch",
+    "rapidfuzz",
+    "unidecode",
+    "gliner",
+    "requests",
+)
 CONDA_RUNTIME_DLL_NAMES = (
     "sqlite3.dll",
     "libcrypto-3-x64.dll",
@@ -86,7 +98,15 @@ def portable_datas(project_root: Path) -> tuple[tuple[str, str], ...]:
         datas.append((str(plan.models_source), "models"))
     if plan.icon_source is not None:
         datas.append((str(plan.icon_source.parent), "assets"))
+    for relative in BACKEND_SCRIPT_RELATIVES:
+        source = plan.project_root / relative
+        if source.exists():
+            datas.append((str(source), str(relative.parent)))
     return tuple(datas)
+
+
+def portable_hiddenimports() -> tuple[str, ...]:
+    return PYINSTALLER_HIDDEN_IMPORTS
 
 
 def _is_windows_build_host() -> bool:
